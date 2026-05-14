@@ -469,21 +469,11 @@
             }
 
             #dash-page .dashboard-container {
-                display: grid;
-                grid-template-columns: 1.5fr 1fr;
-                /* ฝั่งซ้ายกว้างกว่าฝั่งขวา */
-                gap: 20px;
-            }
-
-            /* 1. จัดการ Grid หลักของ Dashboard */
-            #dash-page {
-                display: grid;
-                grid-template-columns: 1.1fr 0.9fr;
-                /* แบ่งซ้าย-ขวา */
-                grid-template-rows: auto auto;
-                /* สองแถวหลัก */
-                gap: 20px;
-                align-items: start;
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+                width: 100%;
+                /* บังคับความกว้างให้เต็มตั้งแต่แรก */
             }
 
             /* 2. จัดวาง Card สถิติด้านบน (ยอดขาย / ส่งทดลอง) */
