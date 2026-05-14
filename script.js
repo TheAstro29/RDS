@@ -11,7 +11,7 @@ function init() {
         inventory = data.inventory || [];
         sales = data.sales || [];
         customers = data.customers || [];
-        allLogs = data.logs || [];
+        allLogs = (data.logs || []).slice().reverse();
         renderAll();
     }
     fetchData();
@@ -79,7 +79,7 @@ async function fetchData() {
         inventory = data.inventory || [];
         sales = data.sales || [];
         customers = data.customers || [];
-        allLogs = data.logs || [];
+        allLogs = (data.logs || []).slice().reverse();
 
         localStorage.setItem('rds_cache', JSON.stringify(data));
         renderAll();
@@ -187,6 +187,10 @@ function renderAll() {
             `).join('');
     }
 
+    const countHeader = document.getElementById('trial-count-header');
+    if (countHeader) {
+        countHeader.innerText = `(${activeTrials.length} รายการ)`;
+    }
     // 4. แสดงรายการค้างทดลอง (Active Trials) และคำนวณจำนวนวัน
     const trialBody = document.getElementById('d-trial-list');
     if (trialBody) {
@@ -207,19 +211,14 @@ function renderAll() {
                         <td style="padding: 10px 4px;">${l.item}<br><b style="color:var(--orange);">${l.qty} ก้อน</b></td>
                         <td style="padding: 10px 4px; text-align: right;">
                             <span style="
-                                /* เงื่อนไขการเปลี่ยนสีพื้นหลัง */
                                 background: ${diffDays > 14 ? '#fee2e2' : (diffDays > 7 ? '#fef3c7' : '#dcfce7')}; 
-                                
-                                /* เงื่อนไขการเปลี่ยนสีตัวอักษร */
                                 color: ${diffDays > 14 ? '#ef4444' : (diffDays > 7 ? '#b45309' : '#166534')}; 
-                                
                                 padding: 4px 8px; 
                                 border-radius: 6px; 
                                 font-weight: bold;
                                 display: inline-block;
-                                min-width: 65px;
+                                min-width: 60px;
                                 text-align: center;
-                                font-size: 0.85rem;
                             ">
                                 ${diffDays} วัน
                             </span>
