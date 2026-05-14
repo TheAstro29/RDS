@@ -259,16 +259,165 @@
             animation: rotate-ani 1s linear infinite;
         }
 
+        /* =========================================
+   NEW SPLASH SCREEN (LOADING SYSTEM)
+========================================= */
         #loading {
             position: fixed;
-            inset: 0;
-            background: rgba(255, 255, 255, 0.7);
-            z-index: 10002;
-            display: none;
-            flex-direction: column;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #064e3b;
+            /* ใช้สีหลักของคุณ */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-content {
+            text-align: center;
+            color: white;
+        }
+
+        /* สไตล์โลโก้ RDS */
+        .logo-wrapper {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .logo-text {
+            font-size: 5rem;
+            font-weight: 900;
+            margin: 0;
+            letter-spacing: -2px;
+            font-family: 'Inter', sans-serif;
+            animation: pulseText 2s ease-in-out infinite;
+            position: relative;
+            z-index: 2;
+        }
+
+        .logo-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px;
+            height: 120px;
+            background: var(--accent-green);
+            filter: blur(40px);
+            opacity: 0.5;
+            border-radius: 50%;
+            animation: glowPulse 2s ease-in-out infinite;
+        }
+
+        /* สไตล์ตัวหนังสือตัวเล็ก */
+        .sub-text {
+            font-size: 0.9rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            margin-bottom: 30px;
+            font-weight: 300;
+        }
+
+        /* สไตล์ System Loading + จุดวิ่ง */
+        .loading-status {
+            display: flex;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(2px);
+            gap: 8px;
+        }
+
+        .status-text {
+            font-size: 0.85rem;
+            font-weight: 500;
+            opacity: 0.6;
+        }
+
+        .dot-flashing {
+            position: relative;
+            width: 6px;
+            height: 6px;
+            border-radius: 5px;
+            background-color: var(--accent-green);
+            color: var(--accent-green);
+            animation: dotFlashing 1s infinite linear alternate;
+            animation-delay: .5s;
+        }
+
+        .dot-flashing::before,
+        .dot-flashing::after {
+            content: '';
+            display: inline-block;
+            position: absolute;
+            top: 0;
+        }
+
+        .dot-flashing::before {
+            left: -12px;
+            width: 6px;
+            height: 6px;
+            border-radius: 5px;
+            background-color: var(--accent-green);
+            color: var(--accent-green);
+            animation: dotFlashing 1s infinite linear alternate;
+            animation-delay: 0s;
+        }
+
+        .dot-flashing::after {
+            left: 12px;
+            width: 6px;
+            height: 6px;
+            border-radius: 5px;
+            background-color: var(--accent-green);
+            color: var(--accent-green);
+            animation: dotFlashing 1s infinite linear alternate;
+            animation-delay: 1s;
+        }
+
+        /* =========================================
+   ANIMATIONS
+========================================= */
+        @keyframes pulseText {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.05);
+                opacity: 0.8;
+            }
+        }
+
+        @keyframes glowPulse {
+
+            0%,
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.3;
+            }
+
+            50% {
+                transform: translate(-50%, -50%) scale(1.3);
+                opacity: 0.6;
+            }
+        }
+
+        @keyframes dotFlashing {
+            0% {
+                background-color: var(--accent-green);
+            }
+
+            50%,
+            100% {
+                background-color: rgba(16, 185, 129, 0.2);
+            }
         }
 
         .btn-line {
@@ -503,7 +652,6 @@
             }
 
             /* 2. จัดระเบียบ Card ข้อมูล */
-            /* "ความเคลื่อนไหววันนี้" อยู่ฝั่งซ้าย */
             #dash-page .card:nth-child(2) .card-title {
                 font-size: 1.4rem !important;
                 /* ขยายจาก 1rem เป็น 1.4rem */
@@ -635,7 +783,7 @@
 
             /* 4. กล่องตัวเลขระยะเวลา (วัน) */
             #d-trial-list span {
-                font-size: 1rem !important;
+                font-size: 1.2rem !important;
                 font-weight: 500;
             }
 

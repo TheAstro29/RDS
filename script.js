@@ -62,21 +62,41 @@ async function toggleAdmin() {
 
 async function fetchData() {
     const refreshBtn = document.getElementById('main-refresh');
+    const loadingScreen = document.getElementById('loading'); // ดึง Element หน้าโหลดมาเก็บไว้
+
     refreshBtn.classList.add('spinning');
-    if (!localStorage.getItem('rds_cache')) document.getElementById('loading').style.display = 'flex';
+
+    // ถ้ายังไม่มีข้อมูลใน Cache ให้แสดงหน้าโหลดทันที
+    if (!localStorage.getItem('rds_cache')) {
+        loadingScreen.style.display = 'flex';
+        loadingScreen.style.opacity = '1';
+    }
+
     try {
         const res = await fetch(API_URL);
         const data = await res.json();
+
         inventory = data.inventory || [];
         sales = data.sales || [];
         customers = data.customers || [];
         allLogs = data.logs || [];
+
         localStorage.setItem('rds_cache', JSON.stringify(data));
         renderAll();
     }
-    catch (e) { console.error(e); }
+    catch (e) {
+        console.error("Fetch Error:", e);
+    }
     finally {
-        document.getElementById('loading').style.display = 'none';
+        // --- ส่วนที่ปรับปรุงใหม่: ระบบ Fade Out ---
+        if (loadingScreen.style.display !== 'none') {
+            loadingScreen.style.opacity = '0'; // เริ่มทำให้จางลง (ตาม CSS transition 0.5s ที่เราใส่ไว้)
+
+            setTimeout(() => {
+                loadingScreen.style.display = 'none'; // ซ่อน Element ทิ้งหลังจากจางเสร็จ
+            }, 500); // 500ms คือเวลาที่สัมพันธ์กับ CSS transition: opacity 0.5s
+        }
+
         refreshBtn.classList.remove('spinning');
     }
 }
