@@ -1,0 +1,868 @@
+        :root {
+            --primary-green: #064e3b;
+            --accent-green: #10b981;
+            --danger-red: #ef4444;
+            --bg-body: #f1f5f9;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --white: #ffffff;
+            --nav-bg: #1e293b;
+            --orange: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Anuphan', sans-serif;
+            background-color: var(--bg-body);
+            margin: 0;
+            padding-bottom: calc(100px + env(safe-area-inset-bottom));
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+        }
+
+        header {
+            background: var(--primary-green);
+            padding: 12px 15px;
+            color: var(--white);
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            padding-top: calc(12px + env(safe-area-inset-top));
+        }
+
+        .header-content {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 12px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .refresh-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px;
+            transition: opacity 0.2s;
+        }
+
+        .refresh-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        .spinning {
+            animation: rotate-ani 1s linear infinite;
+        }
+
+        @keyframes rotate-ani {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: calc(15px + env(safe-area-inset-bottom));
+            left: 50%;
+            transform: translateX(-50%);
+            width: 92%;
+            padding-bottom: env(safe-area-inset-bottom);
+            max-width: 500px;
+            background: var(--nav-bg);
+            border-radius: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            padding: 0 10px;
+            display: block !important;
+        }
+
+        .nav-content {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            height: 70px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .nav-item {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            flex: 1;
+            cursor: pointer;
+            font-family: 'Anuphan';
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item.active {
+            color: var(--accent-green) !important;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: 12px;
+            transform: scale(1.1);
+            transition: all 0.2s ease;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 18px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-left: 5px solid var(--accent-green);
+        }
+
+        .card {
+            background: white;
+            padding: 18px;
+            border-radius: 20px;
+            margin-bottom: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .card-title {
+            font-weight: 800;
+            color: var(--primary-green);
+            font-size: 1rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .swal-input-custom {
+            width: 100%;
+            height: 45px;
+            border-radius: 12px;
+            border: 1.5px solid #e2e8f0;
+            padding: 0 12px;
+            font-family: 'Anuphan';
+            font-size: 0.95rem;
+            outline: none;
+            margin-bottom: 5px;
+        }
+
+        .swal-group {
+            text-align: left;
+            margin-bottom: 12px;
+        }
+
+        .swal-label {
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: var(--text-sub);
+            margin-bottom: 6px;
+            display: block;
+            padding-left: 4px;
+        }
+
+        .stock-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .badge {
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .badge-new {
+            background-color: rgba(46, 204, 113, 0.15);
+            /* เขียวจางๆ */
+            color: var(--accent-green);
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .badge-used {
+            background-color: rgba(230, 126, 34, 0.15);
+            /* ส้มจางๆ */
+            color: var(--orange);
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .spin-loader {
+            width: 30px;
+            height: 30px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--accent-green);
+            border-radius: 50%;
+            animation: rotate-ani 1s linear infinite;
+        }
+
+        #loading {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 10002;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+        }
+
+        .btn-line {
+            background: #00b900;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 800;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .btn-confirm-sale {
+            background: var(--orange);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            padding: 4px 8px;
+            margin-top: 6px;
+            font-weight: 800;
+            box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+        }
+
+        .cart-table {
+            width: 100%;
+            font-size: 0.75rem;
+            border-collapse: collapse;
+            margin-top: 15px;
+            border: 1px solid #eee;
+        }
+
+        .cart-table th {
+            background: #f8fafc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .cart-table td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .admin-only {
+            display: none;
+        }
+
+        .admin-active .admin-only {
+            display: block;
+        }
+
+        .action-bar {
+            position: sticky;
+            top: calc(55px + env(safe-area-inset-top));
+            z-index: 900;
+            background: var(--bg-body);
+            padding: 10px 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin: 0 -12px 15px -12px;
+        }
+
+        .btn-action {
+            /* วิธีที่ 1: เพิ่ม Padding (แนะนำ) เพื่อให้ปุ่มขยายตามขนาดตัวอักษร */
+            padding-top: 10px !important;
+            /* เพิ่มความสูงด้านบน */
+            padding-bottom: 10px !important;
+            /* เพิ่มความสูงด้านล่าง */
+
+            /* วิธีที่ 2: หรือกำหนดความสูงคงที่ (หากต้องการให้ปุ่มเท่ากันเป๊ะ) */
+            /* min-height: 80px !important; */
+
+            font-size: 1.2rem !important;
+            /* เพิ่มขนาดตัวอักษรให้รับกับปุ่มที่ใหญ่ขึ้น */
+
+            /* โค้ดส่วนความนูนและฟอนต์เดิม (คงไว้) */
+            font-family: 'Anuphan', sans-serif !important;
+            font-weight: 700 !important;
+            border-radius: 20px !important;
+            /* เพิ่มความโค้งมนให้รับกับขนาดที่ใหญ่ขึ้น */
+            box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.2), -2px -2px 6px rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow:
+                6px 6px 12px rgba(0, 0, 0, 0.25),
+                -3px -3px 8px rgba(255, 255, 255, 0.25);
+        }
+
+        .btn-action:active {
+            transform: translateY(1px);
+            box-shadow:
+                inset 4px 4px 6px rgba(0, 0, 0, 0.3),
+                inset -2px -2px 4px rgba(255, 255, 255, 0.1);
+        }
+
+        button,
+        .card,
+        select,
+        input,
+        .stat-item,
+        .nav-item,
+        .swal-input-custom {
+            border-radius: 12px !important;
+        }
+
+        /* สำหรับปุ่มนำทางด้านล่างให้มีความมนเป็นพิเศษ */
+        .bottom-nav {
+            border-radius: 25px !important;
+        }
+
+        /* --- ส่วนที่ 1: แก้ไข Menu ให้ล็อคตำแหน่งและดูดีขึ้น --- */
+        .bottom-nav {
+            position: fixed !important;
+            /* ล็อคให้นิ่ง */
+            bottom: 20px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 95% !important;
+            max-width: 800px !important;
+            /* บน PC ให้กว้างพอประมาณ */
+            background: rgba(30, 41, 59, 0.8) !important;
+            /* พื้นหลังโปร่งแสง */
+            backdrop-filter: blur(10px);
+            /* เอฟเฟกต์กระจกฝ้า */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px !important;
+            z-index: 1000 !important;
+        }
+
+        @media (max-width: 768px) {
+            .swal2-popup.swal2-show {
+                /* ดันขึ้นด้านบนเพื่อให้มีพื้นที่สำหรับ Keyboard */
+                vertical-align: top !important;
+                margin-top: 10px !important;
+            }
+
+            /* ปรับให้รายการลูกค้าไม่ออกมานอกขอบจอ */
+            .swal2-html-container {
+                overflow: visible !important;
+            }
+
+            .swal2-popup {
+                padding-left: 0.5rem !important;
+                /* ลดระยะห่างซ้าย */
+                padding-right: 0.5rem !important;
+                /* ลดระยะห่างขวา */
+            }
+
+            .swal-group {
+                width: 100% !important;
+                /* บังคับให้ Group กว้างเต็มพื้นที่ */
+            }
+
+            .swal-input-custom {
+                width: 100% !important;
+                /* บังคับให้ช่องกรอกยืดเต็ม */
+            }
+        }
+
+        /* --- ส่วนที่ 2: ปรับปรุง Layout สำหรับหน้าจอ PC --- */
+        @media (min-width: 1024px) {
+            body {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                background-color: #e2e8f0;
+                /* เปลี่ยนสีพื้นหลังขอบนอกให้เข้มขึ้นนิดนึง */
+            }
+
+            header,
+            .page,
+            .bottom-nav {
+                width: 100%;
+                max-width: 800px;
+                /* จำกัดความกว้างเนื้อหาให้อยู่ตรงกลางจอ */
+                margin: 0 auto;
+            }
+
+            .bottom-nav {
+                left: 50%;
+                transform: translateX(-50%);
+                /* จัดเมนูให้อยู่กลางจอ PC */
+                border-radius: 20px 20px 0 0;
+                /* ทำมุมโค้งให้ดูเหมือนแอป */
+            }
+
+            .container {
+                max-width: 1200px;
+                /* ขยายขอบเขตเนื้อหาบน PC */
+                margin: 0 auto;
+            }
+
+            #dash-page .dashboard-container {
+                display: grid;
+                grid-template-columns: 1.5fr 1fr;
+                /* ฝั่งซ้ายกว้างกว่าฝั่งขวา */
+                gap: 20px;
+            }
+
+            /* 1. จัดการ Grid หลักของ Dashboard */
+            #dash-page {
+                display: grid;
+                grid-template-columns: 1.1fr 0.9fr;
+                /* แบ่งซ้าย-ขวา */
+                grid-template-rows: auto auto;
+                /* สองแถวหลัก */
+                gap: 20px;
+                align-items: start;
+            }
+
+            /* 2. จัดวาง Card สถิติด้านบน (ยอดขาย / ส่งทดลอง) */
+            .stat-grid {
+                grid-column: 1;
+                /* ล็อคให้อยู่ฝั่งซ้ายด้านบน */
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 20px !important;
+                margin-bottom: 0 !important;
+            }
+
+            .stat-item {
+                min-height: 110px;
+                padding: 20px !important;
+            }
+
+            .stat-item small:first-child {
+                font-size: 1.3rem !important;
+                /* ขยายขนาดหัวข้อให้ใหญ่ขึ้นเมื่อดูบนคอมพิวเตอร์ */
+            }
+
+            .stat-item div[id^="d-"] {
+                font-size: 2rem !important;
+                /* เน้นตัวเลขให้ใหญ่ชัดเจน */
+                color: var(--primary-green);
+            }
+
+            /* 2. จัดระเบียบ Card ข้อมูล */
+            /* "ความเคลื่อนไหววันนี้" อยู่ฝั่งซ้าย */
+            #dash-page .card:nth-child(2) .card-title {
+                font-size: 1.4rem !important;
+                /* ขยายจาก 1rem เป็น 1.4rem */
+                padding-bottom: 10px;
+                border-bottom: 2px solid var(--accent-green);
+                /* เพิ่มเส้นใต้ให้ดูเป็นสัดส่วน */
+                margin-bottom: 15px;
+            }
+
+            /* ปรับขนาดตัวอักษรในรายการกิจกรรมให้ใหญ่ตาม */
+            #d-today-activity b {
+                font-size: 1.3rem !important;
+            }
+
+            #d-today-activity small {
+                font-size: 0.85rem !important;
+            }
+
+            /* "สต็อกคงเหลือ" อยู่ฝั่งขวาบน */
+            #dash-page>.card:nth-child(3) {
+                grid-column: 2;
+                grid-row: 1;
+                /* แถวที่ 1 ฝั่งขวา */
+                margin-bottom: 0;
+            }
+
+            #dash-page>.card:nth-child(4) {
+                grid-column: 2;
+                grid-row: 2;
+                /* แถวที่ 2 ฝั่งขวา */
+            }
+
+            /* ปรับปรุง Card ให้ดูพรีเมียม */
+            .card {
+                border: none !important;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+                transition: transform 0.2s ease;
+            }
+
+            .card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+                transition: all 0.3s ease;
+            }
+
+            .bottom-nav {
+                max-width: 500px !important;
+                /* บีบเมนูให้เหลือความกว้าง 500px */
+                width: 90% !important;
+                /* เผื่อพื้นที่ข้างเล็กน้อย */
+                left: 50% !important;
+                /* ขยับจุดเริ่มต้นไปที่กลางจอ */
+                transform: translateX(-50%) !important;
+                /* ดึงกลับมาให้กึ่งกลางพอดี */
+                bottom: 20px !important;
+                /* ยกให้ลอยขึ้นจากขอบล่าง 20px */
+                border-radius: 25px !important;
+                /* ปรับขอบให้มนโค้งเข้ากับดีไซน์ */
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3) !important;
+                /* เพิ่มเงาให้ดูมีมิติ */
+            }
+
+            #stock-list {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 20px;
+            }
+
+            /* ปรับแต่งภายใน Card ให้แบ่งซ้าย-ขวา */
+            .stock-card-split {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 15px;
+                background: white;
+                border-radius: 15px;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+
+            .stock-col {
+                flex: 1;
+                text-align: center;
+                padding: 5px;
+            }
+
+            .stock-col:first-child {
+                border-right: 1px solid #f1f5f9;
+            }
+
+            /* ปรับแต่งหน้าคลัง (Stock Page) */
+            .action-bar {
+                grid-template-columns: 250px 250px !important;
+                /* ปุ่มไม่กางเต็มหน้าจอ */
+                justify-content: center;
+                border-radius: 0 0 20px 20px;
+            }
+
+            #stock-list {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                gap: 15px;
+            }
+
+            /* 1. หัวข้อ Card (⏳ รายการที่อยู่ระหว่างทดลอง...) */
+            #dash-page .card:last-child .card-title {
+                font-size: 1.4rem !important;
+                /* ปรับหัวข้อให้ใหญ่ขึ้น */
+                padding-bottom: 10px;
+                border-bottom: 2px solid var(--orange);
+            }
+
+            /* 2. หัวตาราง (ลูกค้า / หิน / ระยะเวลา) */
+            #dash-page .card:last-child table thead th {
+                font-size: 1.1rem !important;
+                padding: 12px 8px !important;
+            }
+
+            /* 3. เนื้อหาในตาราง (ชื่อลูกค้า และ รายการหิน) */
+            #d-trial-list td b {
+                font-size: 1.5rem !important;
+                /* ชื่อลูกค้าและจำนวนหิน */
+            }
+
+            #d-trial-list td {
+                font-size: 1.1rem !important;
+                padding: 15px 8px !important;
+                /* เพิ่มระยะห่างให้ดูโปร่งขึ้น */
+            }
+
+            /* 4. กล่องตัวเลขระยะเวลา (วัน) */
+            #d-trial-list span {
+                font-size: 1rem !important;
+                font-weight: 500;
+            }
+
+            /* จำกัดความกว้างของ SweetAlert2 บนคอมพิวเตอร์ */
+            .swal2-popup {
+                width: 600px !important;
+                max-width: 90% !important;
+            }
+
+            /* ปรับ Layout ภายใน Modal ให้ดูเป็นระเบียบขึ้น */
+            .swal-group {
+                margin-bottom: 15px !important;
+            }
+
+            .swal-label {
+                font-size: 0.9rem !important;
+                /* เพิ่มขนาด Label ให้อ่านง่ายบนจอใหญ่ */
+            }
+
+            /* ปรับแต่งช่อง Input ใน Modal ให้ใหญ่ขึ้นเล็กน้อย */
+            .swal-input-custom,
+            .swal2-select {
+                height: 50px !important;
+                font-size: 1rem !important;
+            }
+
+            /* ปรับตารางรายการในตะกร้า (Cart) ให้ดูชัดเจน */
+            .cart-table {
+                font-size: 0.95rem !important;
+            }
+
+            #log-list {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }
+        }
+
+        /* เมื่อเป็นหน้าจอ PC ขนาดปกติขึ้นไป */
+        @media (min-width: 1200px) {
+            #log-list {
+                grid-template-columns: repeat(3, 1fr);
+                /* แสดง 3 คอลัมน์ */
+            }
+
+            /* ปรับแต่ง Card ในหน้าประวัติให้สูงเท่ากันเพื่อความสวยงาม */
+            #log-list .card {
+                height: 100%;
+                margin-bottom: 0;
+                /* ใช้ Gap แทน Margin */
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+            }
+        }
+
+        @media (min-width: 768px) {
+            #log-list {
+                grid-template-columns: repeat(2, 1fr);
+                /* แสดง 2 คอลัมน์ */
+            }
+        }
+
+        .stat-item small:first-child {
+            font-size: 0.9rem !important;
+            /* ขนาดสำหรับมือถือ */
+            font-weight: 700;
+        }
+
+        /* ปรับระยะห่างของเนื้อหาไม่ให้ถูกเมนูบัง */
+        body {
+            padding-bottom: 120px !important;
+        }
+
+        .btn-close-modal {
+            background: #f1f5f9 !important;
+            color: #475569 !important;
+            border: 1px solid #e2e8f0 !important;
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            font-weight: 800;
+            margin-top: 8px;
+            cursor: pointer;
+        }
+
+        /* เจาะจงปรับขนาดฟอนต์ช่องค้นหาในหน้า Log */
+        #log-page .swal-input-custom {
+            font-size: 1.0rem !important;
+            /* ปรับขนาดตัวอักษรที่พิมพ์ */
+            height: 50px !important;
+            /* เพิ่มความสูงช่องให้สมดุลกับฟอนต์ */
+        }
+
+        /* ปรับขนาดตัวอักษรคำแนะนำ (Placeholder) */
+        #log-page #search-text::placeholder {
+            font-size: 0.8rem !important;
+            opacity: 0.7;
+        }
+
+        /* ปรับขนาดตัวอักษรในช่องเลือกวันที่ */
+        #log-page #search-date {
+            font-size: 0.8rem !important;
+        }
+
+        /* กำหนด Layout พื้นฐานสำหรับทุกอุปกรณ์ */
+        #log-list {
+            display: grid;
+            gap: 12px;
+            /* ระยะห่างระหว่าง Card */
+            grid-template-columns: 1fr;
+            /* เริ่มต้นที่ 1 คอลัมน์ (มือถือ) */
+            align-items: start;
+        }
+
+        /* --- ปรับแต่ง SweetAlert2 ให้พรีเมียมสไตล์ RDS --- */
+
+        /* 1. ปรับแต่งตัวกล่องข้อความ (Popup) */
+        .swal2-popup {
+            font-family: 'Anuphan', sans-serif !important;
+            border-radius: 24px !important;
+            /* มนพิเศษเข้ากับดีไซน์ใหม่ */
+            padding-left: 1rem !important;
+            /* ลดระยะห่างซ้าย */
+            padding-right: 1rem !important;
+            /* ลดระยะห่างขวา */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        /* 2. ปรับแต่งหัวข้อและเนื้อหา */
+        .swal2-title {
+            font-weight: 800 !important;
+            color: var(--primary-green) !important;
+        }
+
+        .swal2-html-container {
+            font-size: 1rem !important;
+            color: var(--text-sub) !important;
+        }
+
+        /* 3. ปรับแต่งปุ่มกด (Buttons) */
+        .swal2-confirm {
+            background-color: var(--primary-green) !important;
+            /* เขียวเข้ม C2TECH */
+            border-radius: 12px !important;
+            padding: 12px 30px !important;
+            font-weight: 700 !important;
+            box-shadow: 0 4px 10px rgba(6, 78, 59, 0.2) !important;
+        }
+
+        .swal2-cancel {
+            border-radius: 12px !important;
+            padding: 12px 30px !important;
+            font-weight: 700 !important;
+        }
+
+        /* 4. ปรับแต่ง Input (เช่น หน้า Login Admin) */
+        .swal2-input {
+            border-radius: 12px !important;
+            border: 1.5px solid #e2e8f0 !important;
+            font-family: 'Anuphan', sans-serif !important;
+        }
+
+        /* 5. ปรับแต่ง Icon (Success/Error) */
+        .swal2-icon.swal2-success {
+            border-color: var(--accent-green) !important;
+        }
+
+        .swal2-success-ring {
+            border: .25em solid rgba(16, 185, 129, .3) !important;
+        }
+
+        /* เจาะจงปรับขนาดฟอนต์ในตารางค้างทดลอง */
+        #d-trial-list td,
+        #d-trial-list td b {
+            font-size: 1rem !important;
+            /* ปรับขนาดข้อมูลในตาราง */
+        }
+
+        #dash-page .card table thead th {
+            font-size: 0.75rem !important;
+            /* ปรับขนาดหัวตาราง (ลูกค้า/หิน/ระยะเวลา) */
+            font-weight: 700;
+        }
+
+        #d-trial-list span {
+            font-size: 0.8rem !important;
+            font-weight: 100;
+        }
+
+        .dashboard-container .card div[style*="display: flex"] {
+            gap: 10px !important;
+            /* เว้นระยะห่างระหว่างปุ่ม */
+        }
+
+        .dashboard-container .card button {
+            flex: 1;
+            /* บังคับให้ทั้ง 2 ปุ่มแบ่งครึ่งหน้าจอเท่ากันเป๊ะ */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            /* ระยะห่างระหว่างไอคอนกับตัวหนังสือ */
+            padding: 12px 5px !important;
+            /* เพิ่มความสูงปุ่มให้กดง่าย */
+            border-radius: 50px !important;
+            /* ทำทรงแคปซูล */
+            font-size: 0.95rem !important;
+            font-weight: 700 !important;
+            border: none !important;
+            transition: all 0.2s ease;
+            min-height: 45px;
+            /* บังคับความสูงขั้นต่ำให้เท่ากัน */
+        }
+
+        /* เพิ่ม Effect ตอนกดให้นุ่มนวล */
+        .dashboard-container .card button:active {
+            transform: scale(0.95);
+            opacity: 0.8;
+        }

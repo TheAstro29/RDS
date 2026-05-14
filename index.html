@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>RDS by C2TECH v1.0.5</title>
+    <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@600;700&display=swap" rel="stylesheet">    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="style.css" />
+    
+</head>
+<body>
+
+<div id="loading"><div class="spin-loader"></div><div style="margin-top:10px; font-weight:800;">กำลังประมวลผล...</div></div>
+
+<header>
+    <div class="header-content">
+        <div><b style="font-family:'Inter'; font-size: 2rem;">RDS</b> <small style="font-size: 1rem; opacity: 0.8; font-weight: 300; margin-left: 2px;">by C2TECH</small> <span style="font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 2px 5px; border-radius: 4px; margin-left: 5px;">v1.0.5</span></div>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <button id="admin-btn" onclick="toggleAdmin()" style="background:none; border:none; color:white; cursor:pointer; font-size: 1.2rem;">🔒</button>
+            <button onclick="fetchData()" class="refresh-btn" id="main-refresh">
+                <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            </button>
+        </div>
+    </div>
+</header>
+
+<div class="container">
+    <div id="dash-page" class="page active">
+        <div class="stat-grid">
+            <div class="stat-item"><small style="color:var(--text-sub); font-weight:700;">ยอดขายสะสม</small><div id="d-sell" style="font-size:1.4rem; font-weight:800;">0</div><small>ก้อน</small></div>
+            <div class="stat-item" style="border-left-color: var(--orange);"><small style="color:var(--text-sub); font-weight:700;">ส่งทดลองสะสม</small><div id="d-test" style="font-size:1.4rem; font-weight:800;">0</div><small>ก้อน</small></div>
+        </div>
+
+        <div class="card" style="border-left: 5px solid var(--accent-green);">
+            <div class="card-title">📅 ความเคลื่อนไหววันนี้</div>
+            <div id="d-today-activity" style="font-size: 0.85rem; max-height: 250px; overflow-y: auto;">
+                <center style="color:#ccc; padding:10px;">กำลังโหลดข้อมูล...</center>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">📦 สต็อกคงเหลือปัจจุบัน</div>
+            <div style="font-size: 0.85rem; overflow-x: auto;"><table style="width: 100%; border-collapse: collapse;"><thead><tr style="text-align: left; color: var(--text-sub);"><th>รุ่น #เบอร์</th><th style="text-align:center;">New</th><th style="text-align:center;">Used</th><th style="text-align:right;">รวม</th></tr></thead><tbody id="report-stock-body"></tbody></table></div>
+            <button class="btn-line" onclick="copyReport()">📋 คัดลอกรายงาน สำหรับส่ง LINE</button>
+        </div>
+        <div class="card">
+            <div class="card-title" style="color: var(--orange);">⏳ รายการที่อยู่ระหว่างทดลอง/รอวางบิล</div>
+            <div style="overflow-x: auto;">
+                <table id="d-trial-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="text-align: left; color: var(--text-sub); border-bottom: 1px solid #eee;">
+                            <th style="padding: 8px 4px;">ลูกค้า</th>
+                            <th style="padding: 8px 4px;">หิน / จำนวน</th>
+                            <th style="padding: 8px 4px; text-align: right;">ระยะเวลา</th>
+                        </tr>
+                    </thead>
+                    <tbody id="d-trial-list">
+                        <!-- ข้อมูลจะถูก Render จาก JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+</div>
+
+    <div id="stock-page" class="page">
+        <div class="action-bar"><button class="btn-action" onclick="openModal('IN')" style="background:#f0fdf4; border:2.2px solid var(--accent-green); font-weight:800; color:var(--primary-green);">📥 รับเข้า / คืน</button><button class="btn-action" onclick="openModal('OUT')" style="background:#fef2f2; border:2.2px solid var(--danger-red); font-weight:800; color:#991b1b;">📤 ขาย / ลอง</button></div>
+        <div id="stock-list"></div>
+    </div>
+
+    <div id="log-page" class="page">
+        <div class="card" style="padding: 12px; position: sticky; top: 70px; z-index: 800;"><div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:8px;"><input type="date" id="search-date" class="swal-input-custom" onchange="filterLogs()"><input type="text" id="search-text" class="swal-input-custom" placeholder="🔍 ค้นหาลูกค้าหรือรุ่น..." onkeyup="filterLogs()"></div></div>
+        <div id="log-list"></div>
+    </div>
+
+    <div id="manage-page" class="page">
+        <div class="card">
+            <div class="card-title">⚙️ ตั้งค่าระบบ <span id="admin-status" style="margin-left:auto; font-size:0.6rem; background:#fee2e2; color:#ef4444; padding:2px 8px; border-radius:10px;">User Mode</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center;"><span>📦 รุ่นหิน</span> <button onclick="addModel()" class="admin-only" style="color:var(--accent-green); border:none; background:none; font-weight:800;">+ เพิ่ม</button></div><div id="m-models-list" style="margin-bottom:15px;"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center;"><span>👤 ทีมงาน</span> <button onclick="addData('SALE')" class="admin-only" style="color:var(--accent-green); border:none; background:none; font-weight:800;">+ เพิ่ม</button></div><div id="m-sales-list" style="margin-bottom:15px;"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+    <span>🏢 รายชื่อลูกค้า (บันทึกอัตโนมัติ)</span> 
+    </div>
+<div id="m-custs-list"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ค้นหาบรรทัดนี้ในไฟล์ของคุณตู๋ (ประมาณบรรทัดที่ 113) -->
+<nav class="bottom-nav">
+    <div class="nav-content">
+        <button class="nav-item active" onclick="showPage('dash-page', this)">📊<span>สรุป</span></button>
+        <button class="nav-item" onclick="showPage('stock-page', this)">📦<span>คลัง</span></button>
+        <button class="nav-item" onclick="showPage('log-page', this)">🕒<span>ประวัติ</span></button>
+        
+        <!-- แก้ไขส่วนนี้: เพิ่มไอคอนและข้อความให้ครบโครงสร้าง -->
+        <button class="nav-item admin-only" id="nav-manage" onclick="showPage('manage-page', this)">
+            ⚙️<span>ตั้งค่า</span>
+        </button>
+    </div>
+</nav>
+<script src="script.js"></script>
+</body>
+</html>
