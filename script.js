@@ -202,13 +202,29 @@ function renderAll() {
                     diffDays = Math.floor((new Date() - logDate) / (1000 * 60 * 60 * 24));
                 }
                 return `
-                        <tr>
-                            <td style="padding: 10px 4px;"><b>${l.cust}</b></td>
-                            <td style="padding: 10px 4px;">${l.item}<br><b style="color:var(--orange);">${l.qty} ก้อน</b></td>
-                            <td style="padding: 10px 4px; text-align: right;">
-                                <span style="background:#fef3c7; color:#b45309; padding:2px 6px; border-radius:4px; font-weight:bold;">${diffDays} วัน</span>
-                            </td>
-                        </tr>`;
+                    <tr>
+                        <td style="padding: 10px 4px;"><b>${l.cust}</b></td>
+                        <td style="padding: 10px 4px;">${l.item}<br><b style="color:var(--orange);">${l.qty} ก้อน</b></td>
+                        <td style="padding: 10px 4px; text-align: right;">
+                            <span style="
+                                /* เงื่อนไขการเปลี่ยนสีพื้นหลัง */
+                                background: ${diffDays > 14 ? '#fee2e2' : (diffDays > 7 ? '#fef3c7' : '#dcfce7')}; 
+                                
+                                /* เงื่อนไขการเปลี่ยนสีตัวอักษร */
+                                color: ${diffDays > 14 ? '#ef4444' : (diffDays > 7 ? '#b45309' : '#166534')}; 
+                                
+                                padding: 4px 8px; 
+                                border-radius: 6px; 
+                                font-weight: bold;
+                                display: inline-block;
+                                min-width: 65px;
+                                text-align: center;
+                                font-size: 0.85rem;
+                            ">
+                                ${diffDays} วัน
+                            </span>
+                        </td>
+                    </tr>`;
             }).join('');
         }
     }
