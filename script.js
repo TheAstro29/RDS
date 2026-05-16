@@ -405,8 +405,13 @@ function filterLogs() {
         filtered = filtered.filter(l => String(l.date).includes(searchStr));
     }
     
-    if (textVal) { 
-        filtered = filtered.filter(l => String(l.item).toLowerCase().includes(textVal) || String(l.cust).toLowerCase().includes(textVal) || String(l.sale).toLowerCase().includes(textVal)); 
+    if (textVal) {
+        filtered = filtered.filter(l =>
+            String(l.item).toLowerCase().includes(textVal) ||
+            String(l.cust).toLowerCase().includes(textVal) ||
+            String(l.sale).toLowerCase().includes(textVal) ||
+            String(l.remark || '').toLowerCase().includes(textVal)
+        );
     }
     
     const logList = document.getElementById('log-list');
