@@ -11,7 +11,10 @@ function init() {
         inventory = data.inventory || [];
         sales = data.sales || [];
         customers = data.customers || [];
-        allLogs = (data.logs || []).slice().reverse();
+
+        // บรรทัดนี้ต้องมี .slice().reverse() ด้วยเช่นกันครับ
+        allLogs = data.logs || [];
+
         renderAll();
     }
     fetchData();
@@ -75,17 +78,17 @@ async function fetchData() {
     try {
         const res = await fetch(API_URL);
         const data = await res.json();
-
         inventory = data.inventory || [];
         sales = data.sales || [];
         customers = data.customers || [];
-        allLogs = (data.logs || []).slice().reverse();
+
+        // แก้ไขบรรทัดนี้: สั่งให้กลับด้านข้อมูลล่าสุดขึ้นก่อนทันทีก่อนจะบันทึกและแสดงผล
+        allLogs = data.logs || [];
 
         localStorage.setItem('rds_cache', JSON.stringify(data));
         renderAll();
-    }
-    catch (e) {
-        console.error("Fetch Error:", e);
+    } catch (e) {
+        console.error(e);
     }
     finally {
         // --- ส่วนที่ปรับปรุงใหม่: ระบบ Fade Out ---
@@ -430,8 +433,98 @@ function filterLogs() {
     }
 }
 
-async function confirmTestToSale(logId) { const res = await Swal.fire({ title: 'ยืนยันการขาย?', icon: 'question', showCancelButton: true }); if (res.isConfirmed) await syncAction('confirmTestToSale', { id: logId }); }
-async function returnTestItem(logId) { const res = await Swal.fire({ title: 'ยืนยันการรับคืน?', text: "หินจะถูกนำกลับเข้าสต็อก (Used) ทันที", icon: 'warning', showCancelButton: true, confirmButtonColor: '#64748b', confirmButtonText: '✅ ยืนยันรับคืน' }); if (res.isConfirmed) await syncAction('returnTestItem', { id: logId }); }
+async function confirmTestToSale(targetId) {
+    // เปลี่ยนมาใช้ .find เพื่อค้นหาจาก ID ข้อความที่ส่งมาจากปุ่มในหน้า Log
+    const log = allLogs.find(l => l.id === targetId);
+    
+    if (!log) {
+        Swal.fire('เกิดข้อผิดพลาด', 'ไม่พบข้อมูลรายการนี้ในระบบ', 'error');
+        return;
+    }
+
+    const result = await Swal.fire({
+        title: 'ยืนยันการขายสินค้า?',
+        text: `คุณกำลังยืนยันการขาย ${log.item} จำนวน ${log.qty} ก้อน ให้คุณ ${log.cust}`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--primary-green)',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ยืนยัน',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
+        Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: "confirmTestToSale", // ตรวจสอบชื่อ action ให้ตรงกับ Google Script ของคุณ
+                    id: log.id,
+                    item: log.item,
+                    qty: log.qty,
+                    cust: log.cust,
+                    sale: log.sale
+                })
+            });
+            const resData = await res.json();
+            if (resData.status === 'success') {
+                await Swal.fire('บันทึกสำเร็จ', 'เปลี่ยนสถานะเป็นขายเรียบร้อย', 'success');
+                fetchData(); // โหลดข้อมูลใหม่เพื่ออัปเดตหน้าจอทันที
+            } else {
+                Swal.fire('เกิดข้อผิดพลาด', resData.message || 'บันทึกไม่สำเร็จ', 'error');
+            }
+        } catch (e) {
+            Swal.fire('เกิดข้อผิดพลาด', e.message, 'error');
+        }
+    }
+}
+async function returnTestItem(targetId) {
+    // เปลี่ยนมาใช้ .find เพื่อค้นหาจาก ID ข้อความ
+    const log = allLogs.find(l => l.id === targetId);
+    
+    if (!log) {
+        Swal.fire('เกิดข้อผิดพลาด', 'ไม่พบข้อมูลรายการนี้ในระบบ', 'error');
+        return;
+    }
+
+    const result = await Swal.fire({
+        title: 'ยืนยันการคืนสินค้า?',
+        text: `รับคืน ${log.item} จำนวน ${log.qty} ก้อน กลับเข้าคลังสินค้า`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#64748b',
+        cancelButtonColor: '#1e293b',
+        confirmButtonText: 'ยืนยันการคืน',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
+        Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: "returnTestItem", // ตรวจสอบชื่อ action ให้ตรงกับ Google Script ของคุณ
+                    id: log.id,
+                    item: log.item,
+                    qty: log.qty,
+                    cust: log.cust,
+                    sale: log.sale
+                })
+            });
+            const resData = await res.json();
+            if (resData.status === 'success') {
+                await Swal.fire('บันทึกสำเร็จ', 'รับคืนสินค้าเข้าคลังเรียบร้อย', 'success');
+                fetchData(); // โหลดข้อมูลใหม่เพื่ออัปเดตหน้าจอทันที
+            } else {
+                Swal.fire('เกิดข้อผิดพลาด', resData.message || 'บันทึกไม่สำเร็จ', 'error');
+            }
+        } catch (e) {
+            Swal.fire('เกิดข้อผิดพลาด', e.message, 'error');
+        }
+    }
+}
 
 async function openModal(dir) {
     cart = [];
