@@ -339,11 +339,9 @@ async function deleteData(type, name) {
         reverseButtons: true // สลับตำแหน่งปุ่มให้ดูคุ้นเคย
     });
 
-    // ถ้ากดยืนยัน (Confirm)
     if (result.isConfirmed) {
         try {
             await syncAction('deleteData', { type, name });
-            // syncAction จะแสดง Swal.fire สำเร็จให้อยู่แล้วหลังจากทำงานเสร็จ
         } catch (e) {
             Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถลบข้อมูลได้', 'error');
         }
@@ -434,9 +432,7 @@ function filterLogs() {
 }
 
 async function confirmTestToSale(targetId) {
-    // เปลี่ยนมาใช้ .find เพื่อค้นหาจาก ID ข้อความที่ส่งมาจากปุ่มในหน้า Log
-    const log = allLogs.find(l => l.id === targetId);
-    
+    const log = allLogs.find(l => l.id === targetId) || allLogs.find(l => l.cust === targetId);
     if (!log) {
         Swal.fire('เกิดข้อผิดพลาด', 'ไม่พบข้อมูลรายการนี้ในระบบ', 'error');
         return;
@@ -480,9 +476,7 @@ async function confirmTestToSale(targetId) {
     }
 }
 async function returnTestItem(targetId) {
-    // เปลี่ยนมาใช้ .find เพื่อค้นหาจาก ID ข้อความ
-    const log = allLogs.find(l => l.id === targetId);
-    
+    const log = allLogs.find(l => l.id === targetId) || allLogs.find(l => l.cust === targetId);
     if (!log) {
         Swal.fire('เกิดข้อผิดพลาด', 'ไม่พบข้อมูลรายการนี้ในระบบ', 'error');
         return;
@@ -586,7 +580,7 @@ async function openModal(dir) {
             const ts = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('th-TH');
 
             return [{
-                id: Date.now().toString(),
+                id: "L" + Date.now().toString(),
                 date: ts,
                 sale: sl,
                 cust: cust,
@@ -625,7 +619,7 @@ function addToCart(dir) {
         }
         existingItem.qty += qt;
     } else {
-        cart.push({ id: Date.now(), item: itemIdentifier, qty: qt });
+        cart.push({ id: "L" + Date.now(), item: itemIdentifier, qty: qt });
     }
     renderCart();
 }
@@ -638,26 +632,31 @@ window.removeFromCart = i => { cart.splice(i, 1); renderCart(); };
  * ปรับปรุง: ตรวจสอบสถานะความสำเร็จจาก Server
  */
 async function syncAction(action, payload) {
-    document.getElementById('loading').style.display = 'flex';
+    // 1. เรียกใช้ป้ายโหลดดิ้งหมุนๆ ของ Swal แทนการแสดง div แบบเดิม
+    Swal.fire({
+        title: 'กำลังบันทึก...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
             body: JSON.stringify({ action, ...payload })
         });
 
-        const result = await response.json(); // รับสถานะจาก Server[cite: 5]
+        const result = await response.json();
 
         if (result.status === "success") {
-            await fetchData();
-            Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1000, showConfirmButton: false });
+            await fetchData(); // โหลดข้อมูลใหม่หลังจากบันทึก
+            // 2. ปรับหน้าต่างตอนบันทึกสำเร็จ ให้มีปุ่มกดตกลงเหมือนกับหน้า Log
+            await Swal.fire('บันทึกสำเร็จ', 'ระบบได้อัปเดตข้อมูลเรียบร้อยแล้ว', 'success');
         } else {
             throw new Error(result.message || 'เกิดข้อผิดพลาดที่เซิร์ฟเวอร์');
         }
     } catch (e) {
         console.error("Sync Error:", e);
         Swal.fire('แจ้งเตือน', e.message || 'ไม่สามารถเชื่อมต่อได้', 'error');
-    } finally {
-        document.getElementById('loading').style.display = 'none';
     }
 }
 function showPage(pageId, elm) {
