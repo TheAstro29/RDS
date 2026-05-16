@@ -373,61 +373,101 @@ async function cancelLog(id) {
     }
 }
 
+// --- 1. เพิ่มตัวแปรสำหรับจดจำสถานะหน้า Log ---
+let logDisplayLimit = 30;
+let lastSearchDate = '';
+let lastSearchText = '';
+
+// --- 2. ฟังก์ชันโหลดประวัติเพิ่มเติม ---
+function loadMoreLogs() {
+    logDisplayLimit += 30; // เพิ่มการแสดงผลทีละ 30 รายการ
+    filterLogs(); // สั่งให้วาดหน้าจอใหม่
+}
+
+// --- 3. ฟังก์ชันกรองและแสดงผล Log (ฉบับอัปเดต) ---
 function filterLogs() {
     const dateVal = document.getElementById('search-date').value;
     const textVal = document.getElementById('search-text').value.toLowerCase();
+
+    // ถ้ายูสเซอร์เปลี่ยนคำค้นหา หรือเปลี่ยนวันที่ ให้รีเซ็ตจำนวนกลับมาเริ่มต้นที่ 30 รายการ
+    if (dateVal !== lastSearchDate || textVal !== lastSearchText) {
+        logDisplayLimit = 30;
+        lastSearchDate = dateVal;
+        lastSearchText = textVal;
+    }
+
+    // (สมมติว่า allLogs ถูก .reverse() กลับด้านมาจากตอน fetchData แล้ว)
     let filtered = [...allLogs].reverse();
+    
     if (dateVal) {
         const [y, m, d] = dateVal.split('-');
         const searchStr = `${parseInt(d)}/${parseInt(m)}/${parseInt(y) + 543}`;
         filtered = filtered.filter(l => String(l.date).includes(searchStr));
     }
-    if (textVal) { filtered = filtered.filter(l => String(l.item).toLowerCase().includes(textVal) || String(l.cust).toLowerCase().includes(textVal) || String(l.sale).toLowerCase().includes(textVal)); }
+    
+    if (textVal) { 
+        filtered = filtered.filter(l => String(l.item).toLowerCase().includes(textVal) || String(l.cust).toLowerCase().includes(textVal) || String(l.sale).toLowerCase().includes(textVal)); 
+    }
+    
     const logList = document.getElementById('log-list');
-    if (filtered.length === 0) { logList.innerHTML = `<center style="padding:50px; color:#94a3b8;">ไม่พบรายการ</center>`; }
-    else {
-        logList.innerHTML = filtered.slice(0, 30).map(l => `
-                <div class="card" style="border-left:5px solid ${l.status === 'PENDING' ? 'var(--orange)' : (l.status === 'RETURNED' ? '#64748b' : (l.direction === 'IN' ? '#10b981' : '#ef4444'))};">
-                    <div style="display:flex; justify-content:space-between;">
-                        <div style="font-size:0.75rem;">
-                            <b>${l.status === 'RETURNED' ? '🔄 รับคืนสินค้า' : l.typeLabel}</b> | <b>${l.item}</b><br>
-                            
-                            <!-- ส่วนที่แก้ไข: แสดงชื่อลูกค้า และ ชื่อทีมงานด้านล่าง -->
-                            <div style="margin-top: 4px;">
-                                <span style="font-weight: 700; font-size: 0.7rem; color: var(--text-main);">👤 ลูกค้า: ${l.cust}</span>
-                            </div>
-                            <div style="color: var(--primary-green); font-weight: 600; font-size: 0.7rem;">
-                                🛠️ ผู้จัดทำ: ${l.sale || 'ไม่ระบุ'}
-                            </div>
-
-                            <!-- ส่วน Remark เดิม -->
-                            ${l.remark ? `<div style="color: #f59e0b; font-size: 0.65rem; margin-top: 4px; font-weight: 600;">📝 Note: ${l.remark}</div>` : ''}
-                        </div>
+    
+    if (filtered.length === 0) { 
+        logList.innerHTML = `<center style="padding:50px; color:#94a3b8;">ไม่พบรายการ</center>`; 
+    } else {
+        // ใช้ตัวแปร logDisplayLimit แทนเลข 30 เดิม
+        logList.innerHTML = filtered.slice(0, logDisplayLimit).map(l => `
+            <div class="card" style="border-left:5px solid ${l.status === 'PENDING' ? 'var(--orange)' : (l.status === 'RETURNED' ? '#64748b' : (l.direction === 'IN' ? '#10b981' : '#ef4444'))};">
+                <div style="display:flex; justify-content:space-between;">
+                    <div style="font-size:0.75rem;">
+                        <b>${l.status === 'RETURNED' ? '🔄 รับคืนสินค้า' : l.typeLabel}</b> | <b>${l.item}</b><br>
                         
-                        <div style="text-align:right;">
-                            <b style="font-size:1.1rem;">${(l.direction === 'IN' || l.status === 'RETURNED') ? '+' : '-'}${l.qty}</b><br>
-                            <small style="font-size:0.6rem;">${l.date}</small>
-                            
-                            ${l.status === 'PENDING' ? `
-                                <div style="display:flex; gap:4px; margin-top:5px; justify-content:flex-end;">
-                                    <button class="btn-confirm-sale" onclick="confirmTestToSale('${l.id}')">💰 ขาย</button>
-                                    <button class="btn-confirm-sale" style="background:#64748b;" onclick="returnTestItem('${l.id}')">🔄 คืน</button>
-                                </div>` : ''}
-                            
-                            ${isAdmin ? `
-                                <div style="margin-top:8px; display: flex; gap: 10px; justify-content: flex-end;">
-                                    <button onclick="editRemark('${l.id}', '${l.remark || ''}')" 
-                                            style="background:none; color:var(--orange); border:none; font-size:0.8rem; cursor:pointer; text-decoration:underline; font-weight:bold;">
-                                            📝 แก้ไข
-                                    </button>
-                                    <button onclick="cancelLog('${l.id}')" 
-                                            style="background:none; color:var(--danger-red); border:none; font-size:0.8rem; cursor:pointer; text-decoration:underline; font-weight:bold;">
-                                            🚨 ยกเลิก
-                                    </button>
-                                </div>` : ''}
+                        <div style="margin-top: 4px;">
+                            <span style="font-weight: 700; font-size: 0.7rem; color: var(--text-main);">👤 ลูกค้า: ${l.cust}</span>
                         </div>
+                        <div style="color: var(--primary-green); font-weight: 600; font-size: 0.7rem;">
+                            🛠️ ผู้จัดทำ: ${l.sale || 'ไม่ระบุ'}
+                        </div>
+
+                        ${l.remark ? `<div style="color: #f59e0b; font-size: 0.65rem; margin-top: 4px; font-weight: 600;">📝 Note: ${l.remark}</div>` : ''}
                     </div>
-                </div>`).join('');
+                    
+                    <div style="text-align:right;">
+                        <b style="font-size:1.1rem;">${(l.direction === 'IN' || l.status === 'RETURNED') ? '+' : '-'}${l.qty}</b><br>
+                        <small style="font-size:0.6rem;">${l.date}</small>
+                        
+                        ${l.status === 'PENDING' ? `
+                            <div style="display:flex; gap:4px; margin-top:5px; justify-content:flex-end;">
+                                <button class="btn-confirm-sale" onclick="confirmTestToSale('${l.id}')">💰 ขาย</button>
+                                <button class="btn-confirm-sale" style="background:#64748b;" onclick="returnTestItem('${l.id}')">🔄 คืน</button>
+                            </div>` : ''}
+                        
+                        ${isAdmin ? `
+                            <div style="margin-top:8px; display: flex; gap: 10px; justify-content: flex-end;">
+                                <button onclick="editRemark('${l.id}', '${l.remark || ''}')" 
+                                        style="background:none; color:var(--orange); border:none; font-size:0.8rem; cursor:pointer; text-decoration:underline; font-weight:bold;">
+                                        📝 แก้ไข
+                                </button>
+                                <button onclick="cancelLog('${l.id}')" 
+                                        style="background:none; color:var(--danger-red); border:none; font-size:0.8rem; cursor:pointer; text-decoration:underline; font-weight:bold;">
+                                        🚨 ยกเลิก
+                                </button>
+                            </div>` : ''}
+                    </div>
+                </div>
+            </div>`).join('');
+
+        // --- ส่วนที่เพิ่มใหม่: ปุ่มดูเพิ่มเติม ---
+        // เช็คว่าจำนวนข้อมูลที่มี ทั้งหมด มากกว่า จำนวนที่กำลังแสดงอยู่หรือไม่
+        if (filtered.length > logDisplayLimit) {
+            logList.innerHTML += `
+                <div style="text-align: center; margin-top: 15px; margin-bottom: 20px;">
+                    <button onclick="loadMoreLogs()" 
+                        style="background-color: white; border: 2px solid var(--nav-bg); color: var(--nav-bg); padding: 12px 20px; border-radius: 50px; width: 100%; font-family: inherit; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                        ⬇️ ดูรายการเก่าเพิ่มเติม (เหลืออีก ${filtered.length - logDisplayLimit} รายการ)
+                    </button>
+                </div>
+            `;
+        }
     }
 }
 
