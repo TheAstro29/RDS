@@ -1,5 +1,5 @@
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxrv1JEX0w0B1RdEyc3EwtbbSkfrnENNHI2PFe9-LvWLIKk1xPtAlfKFkUHjLCNIOEeCQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxT0TKs_ALRQV17eqz_gwnrmZydHWhcn7fcEGlLrWv3rGP0JX9lWPucdGyBdob-NN42BA/exec";
 const _0x4c2b = [49, 57, 48, 57, 49, 53, 49, 50];
 const ADMIN_PASS = _0x4c2b.map(code => String.fromCharCode(code)).join('');
 let inventory = [], sales = [], customers = [], allLogs = [], isAdmin = false, cart = [];
@@ -298,6 +298,39 @@ function renderAll() {
 
     // 7. กรองประวัติกิจกรรมทั้งหมด
     if (typeof filterLogs === "function") filterLogs();
+    // --- โหลดข้อมูลใส่หน้า Dashboard (รอเคลมสินค้า) ---
+    const claimDash = document.getElementById('claim-list-dashboard');
+    if (claimDash) {
+        const waitingClaims = allLogs.filter(l => l.status === 'WAITING_CLAIM');
+        if (waitingClaims.length === 0) {
+            claimDash.innerHTML = '<div style="text-align:center; color:#94a3b8; padding: 15px;">🎉 ไม่มีรายการค้างเคลม</div>';
+        } else {
+            claimDash.innerHTML = waitingClaims.map(l => `
+                <div style="padding: 10px 0; border-bottom: 1px dashed #cbd5e1; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-size: 0.85rem;">
+                        <b style="color:var(--text-main);">${l.cust}</b><br>
+                        <span style="color:var(--text-sub);">${l.item}</span>
+                    </div>
+                    <div style="font-size: 0.8rem; font-weight:bold; color:#8b5cf6; text-align:right;">
+                        รอเคลม ${l.qty} ก้อน<br>
+                        <small style="color:#94a3b8; font-weight:normal;">${l.date.split(' ')[1]}</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+    // --- คำนวณและแสดงผล "ยอดเคลมสะสม" ---
+    const totalClaimDash = document.getElementById('total-claim-dash');
+    if (totalClaimDash) {
+        // ดึงข้อมูล Log ทั้งหมดที่เป็นการ "เคลมสินค้า" (ทั้งที่รออยู่ และปิดงานแล้ว)
+        const claimLogs = allLogs.filter(l => l.status === 'WAITING_CLAIM' || l.status === 'CLAIMED');
+
+        // จับจำนวน (qty) ของทุกรายการมาบวกกัน
+        const totalClaimQty = claimLogs.reduce((sum, l) => sum + Number(l.qty || 0), 0);
+
+        // อัปเดตตัวเลขขึ้นหน้าจอ
+        totalClaimDash.innerText = totalClaimQty;
+    }
 }
 
 async function addModel() {
@@ -398,13 +431,13 @@ function filterLogs() {
 
     // (สมมติว่า allLogs ถูก .reverse() กลับด้านมาจากตอน fetchData แล้ว)
     let filtered = [...allLogs].reverse();
-    
+
     if (dateVal) {
         const [y, m, d] = dateVal.split('-');
         const searchStr = `${parseInt(d)}/${parseInt(m)}/${parseInt(y) + 543}`;
         filtered = filtered.filter(l => String(l.date).includes(searchStr));
     }
-    
+
     if (textVal) {
         filtered = filtered.filter(l =>
             String(l.item).toLowerCase().includes(textVal) ||
@@ -413,18 +446,18 @@ function filterLogs() {
             String(l.remark || '').toLowerCase().includes(textVal)
         );
     }
-    
+
     const logList = document.getElementById('log-list');
-    
-    if (filtered.length === 0) { 
-        logList.innerHTML = `<center style="padding:50px; color:#94a3b8;">ไม่พบรายการ</center>`; 
+
+    if (filtered.length === 0) {
+        logList.innerHTML = `<center style="padding:50px; color:#94a3b8;">ไม่พบรายการ</center>`;
     } else {
         // ใช้ตัวแปร logDisplayLimit แทนเลข 30 เดิม
         logList.innerHTML = filtered.slice(0, logDisplayLimit).map(l => `
-            <div class="card" style="border-left:5px solid ${l.status === 'PENDING' ? 'var(--orange)' : (l.status === 'RETURNED' ? '#64748b' : (l.direction === 'IN' ? '#10b981' : '#ef4444'))};">
+            <div class="card" style="border-left:5px solid ${l.status === 'PENDING' ? 'var(--orange)' : (l.status === 'WAITING_CLAIM' ? '#8b5cf6' : (l.status === 'RETURNED' || l.status === 'CLAIMED' ? '#64748b' : (l.direction === 'IN' ? '#10b981' : '#ef4444')))};">
                 <div style="display:flex; justify-content:space-between;">
                     <div style="font-size:0.75rem;">
-                        <b>${l.status === 'RETURNED' ? '🔄 รับคืนสินค้า' : l.typeLabel}</b> | <b>${l.item}</b><br>
+                        <b>${l.status === 'RETURNED' ? '🔄 รับคืนสินค้า' : (l.status === 'CLAIMED' ? '✅ เคลมสินค้าแล้ว' : l.typeLabel)}</b> | <b>${l.item}</b><br>
                         
                         <div style="margin-top: 4px;">
                             <span style="font-weight: 700; font-size: 0.7rem; color: var(--text-main);">👤 ลูกค้า: ${l.cust}</span>
@@ -437,7 +470,7 @@ function filterLogs() {
                     </div>
                     
                     <div style="text-align:right;">
-                        <b style="font-size:1.1rem;">${(l.direction === 'IN' || l.status === 'RETURNED') ? '+' : '-'}${l.qty}</b><br>
+                        <b style="font-size:1.1rem;">${(l.direction === 'IN' || l.status === 'RETURNED' || l.status === 'CLAIMED') ? '+' : '-'}${l.qty}</b><br>
                         <small style="font-size:0.6rem;">${l.date}</small>
                         
                         ${l.status === 'PENDING' ? `
@@ -446,16 +479,15 @@ function filterLogs() {
                                 <button class="btn-confirm-sale" style="background:#64748b;" onclick="returnTestItem('${l.id}')">🔄 คืน</button>
                             </div>` : ''}
                         
+                        ${l.status === 'WAITING_CLAIM' ? `
+                            <div style="display:flex; gap:4px; margin-top:5px; justify-content:flex-end;">
+                                <button class="btn-confirm-sale" style="background:#8b5cf6; width:100%; color:white;" onclick="closeClaim('${l.id}')">📦 ปิดงาน</button>
+                            </div>` : ''}
+                        
                         ${isAdmin ? `
                             <div style="margin-top:8px; display: flex; gap: 10px; justify-content: flex-end;">
-                                <button onclick="editRemark('${l.id}', '${l.remark || ''}')" 
-                                        style="background:none; color:var(--orange); border:none; font-size:0.8rem; cursor:pointer; text-decoration:underline; font-weight:bold;">
-                                        📝 แก้ไข
-                                </button>
-                                <button onclick="cancelLog('${l.id}')" 
-                                        style="background:none; color:var(--danger-red); border:none; font-size:0.8rem; cursor:pointer; text-decoration:underline; font-weight:bold;">
-                                        🚨 ยกเลิก
-                                </button>
+                                <button onclick="editRemark('${l.id}', '${l.remark || ''}')" style="background:none; color:var(--orange); border:none; font-size:0.8rem; cursor:pointer; text-decoration:underline; font-weight:bold;">📝 แก้ไข</button>
+                                <button onclick="cancelLog('${l.id}')" style="background:none; color:var(--danger-red); border:none; font-size:0.8rem; cursor:pointer; text-decoration:underline; font-weight:bold;">🚨 ยกเลิก</button>
                             </div>` : ''}
                     </div>
                 </div>
@@ -835,5 +867,96 @@ function handleCustomerInput(input) {
         }, 10);
     } else {
         input.setAttribute('list', 'cust-list');
+    }
+}
+// --- ฟังก์ชันเปิดหน้าต่าง เคลมสินค้า ---
+async function openClaimModal() {
+    cart = [];
+    await Swal.fire({
+        title: '<span style="font-size: 1.5rem; font-weight: 800; color: #8b5cf6;">🛡️ บันทึกเคลมสินค้า</span>',
+        width: '95%',
+        showConfirmButton: true,
+        confirmButtonText: '✅ บันทึกเคลม (ตัดสต็อก)',
+        confirmButtonColor: '#8b5cf6',
+        html: `
+        <input type="hidden" id="sw-t" value="เคลมสินค้า">
+        
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+            <div class="swal-group"><label class="swal-label">ทีมงาน / Sale</label>
+                <select id="sw-sl" class="swal-input-custom">${sales.map(s => `<option>${s}</option>`).join('')}</select>
+            </div>
+            <div class="swal-group">
+                <label class="swal-label">ลูกค้า / โรงสี</label>
+                <input id="sw-cs" class="swal-input-custom" placeholder="พิมพ์ชื่อลูกค้า..." autocomplete="off" onkeyup="handleCustomerInput(this)">
+                <datalist id="cust-list">${customers.map(c => `<option value="${c}">`).join('')}</datalist>
+            </div>
+        </div>
+        <div style="background:#f8fafc; padding:12px; border-radius:15px; border:1px dashed #8b5cf6;">
+            <div class="swal-group"><label class="swal-label" style="color:#8b5cf6;">เลือกรุ่น/เบอร์ (หินใหม่ที่จะเปลี่ยนให้ลูกค้า)</label>
+                <div style="display:grid; grid-template-columns: 2fr 1fr; gap:5px;">
+                    <select id="sw-it" class="swal-input-custom"></select>
+                    <input id="sw-qt" type="number" class="swal-input-custom" value="1" inputmode="numeric">
+                </div>
+            </div>
+            <button type="button" onclick="addToCart('OUT')" style="width:100%; padding:8px; background:#8b5cf6; color:white; border:none; border-radius:10px; font-weight:800;">➕ เพิ่มรายการเคลม</button>
+        </div>
+        <div id="cart-display" style="margin:10px 0;"></div>
+        <div class="swal-group"><label class="swal-label">หมายเหตุ (Remark)</label>
+            <input id="sw-rmk" class="swal-input-custom" placeholder="ระบุอาการเสีย หรือข้อมูลเพิ่มเติม...">
+        </div>
+        <button type="button" class="btn-close-modal" onclick="Swal.close()">❌ ปิดหน้าต่าง</button>
+        `,
+        didOpen: () => {
+            updateModalItems('OUT'); // สั่งให้ดึงรายการที่มีในคลัง (จำนวน > 0) มาแสดง
+        },
+        preConfirm: () => {
+            const cust = document.getElementById('sw-cs').value.trim();
+            if (!cust) return Swal.showValidationMessage('กรุณาใส่ชื่อลูกค้า');
+            if (cart.length === 0) return Swal.showValidationMessage('กรุณาเพิ่มอย่างน้อย 1 รายการ');
+
+            const sl = document.getElementById('sw-sl').value;
+            const rmk = document.getElementById('sw-rmk').value;
+            const ts = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('th-TH');
+
+            return [{
+                id: "L" + Date.now().toString(),
+                date: ts,
+                sale: sl,
+                cust: cust,
+                typeLabel: 'เคลมสินค้า',
+                direction: 'OUT',
+                status: 'WAITING_CLAIM',
+                item: cart.map(it => `${it.item} x${it.qty}`).join(', '),
+                qty: cart.reduce((sum, i) => sum + Number(i.qty), 0),
+                remark: rmk,
+                details: cart
+            }];
+        }
+    }).then(async (r) => {
+        if (r.isConfirmed) {
+            await syncAction('addMultiLogs', { data: r.value });
+        }
+    });
+}
+// --- ฟังก์ชันกดปุ่มปิดงาน ---
+async function closeClaim(targetId) {
+    const log = allLogs.find(l => l.id === targetId) || allLogs.find(l => l.cust === targetId);
+    if (!log) return Swal.fire('ข้อผิดพลาด', 'ไม่พบข้อมูลรายการนี้', 'error');
+
+    const result = await Swal.fire({
+        title: 'ยืนยันปิดงานเคลม?',
+        text: `รับหิน ${log.item} จำนวน ${log.qty} ก้อน คืนเข้าคลังสินค้า`,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonColor: '#8b5cf6',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: '✅ ยืนยันปิดงาน (บวกสต็อกคืน)',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
+        await syncAction('closeClaim', {
+            id: log.id, item: log.item, qty: log.qty, cust: log.cust, sale: log.sale
+        });
     }
 }
