@@ -225,6 +225,14 @@
             gap: 8px;
         }
 
+        #dash-page .card:has(#d-trial-list) .card-title {
+            font-size: 1.1rem !important;
+            /* สั่งลดขนาดลงมาเหลือ 0.95rem ให้พอดีกับสัดส่วนมือถือ */
+            border-bottom: 2px solid var(--orange);
+            /* เพิ่มเส้นใต้สีส้มซอฟต์ๆ แบ่งสัดส่วนให้สวยงามเหมือนบน PC */
+            padding-bottom: 6px;
+        }
+
         .swal-input-custom {
             width: 100%;
             height: 45px;
