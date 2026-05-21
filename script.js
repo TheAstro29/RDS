@@ -1,5 +1,5 @@
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxT0TKs_ALRQV17eqz_gwnrmZydHWhcn7fcEGlLrWv3rGP0JX9lWPucdGyBdob-NN42BA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycby_8TcjuIoD_0Ce-n8QpZFO8B8n1xTfSD9adsgZe4S8ZiEwvpEht1rJceMFfGP7qZ5kMg/exec";
 const _0x4c2b = [49, 57, 48, 57, 49, 53, 49, 50];
 const ADMIN_PASS = _0x4c2b.map(code => String.fromCharCode(code)).join('');
 let inventory = [], sales = [], customers = [], allLogs = [], isAdmin = false, cart = [];
@@ -12,7 +12,6 @@ function init() {
         sales = data.sales || [];
         customers = data.customers || [];
 
-        // บรรทัดนี้ต้องมี .slice().reverse() ด้วยเช่นกันครับ
         allLogs = data.logs || [];
 
         renderAll();
@@ -482,7 +481,12 @@ function filterLogs() {
                         ${l.status === 'WAITING_CLAIM' ? `
                             <div style="display:flex; gap:4px; margin-top:5px; justify-content:flex-end;">
                                 <button class="btn-confirm-sale" style="background:#8b5cf6; width:100%; color:white;" onclick="closeClaim('${l.id}')">📦 ปิดงาน</button>
-                            </div>` : ''}
+                             </div>` : ''}
+                            
+                        ${l.status === 'WAITING_STOCK' ? `
+                            <div style="display:flex; gap:4px; margin-top:5px; justify-content:flex-end;">
+                                <button class="btn-confirm-sale" style="background:#f43f5e; width:100%; color:white;" onclick="processStockClaim('${l.id}')">⚡ เคลม</button>
+                            </div>` : ''}    
                         
                         ${isAdmin ? `
                             <div style="margin-top:8px; display: flex; gap: 10px; justify-content: flex-end;">
@@ -675,6 +679,38 @@ async function openModal(dir) {
     });
 }
 
+function updateModalItems(dir) {
+    const typeSelect = document.getElementById('sw-t');
+    const itemSelect = document.getElementById('sw-it');
+    if (!typeSelect || !itemSelect) return;
+    const type = typeSelect.value;
+    let html = '<option value="">-- เลือกรายการหิน --</option>';
+
+    if (!inventory || inventory.length === 0) {
+        itemSelect.innerHTML = '<option value="">-- ไม่มีข้อมูลในคลัง --</option>';
+        return;
+    }
+
+    inventory.forEach((it, i) => {
+        const cond = (it.condition || "").toUpperCase();
+        const qty = Number(it.qty) || 0;
+        const itemText = `${it.model} #${it.grit} (${it.condition})`;
+
+        if (dir === 'OUT') {
+            if (qty > 0) html += `<option value="${i}">${itemText} [คงเหลือ ${qty}]</option>`;
+        } else if (dir === 'CLAIM') {
+            // โหมดเคลม: แสดงหมดทั้งมีของและไม่มีของ
+            if (qty > 0) html += `<option value="${i}">${itemText} [คงเหลือ ${qty}]</option>`;
+            else html += `<option value="${i}">${itemText} [❌ สินค้าหมด]</option>`;
+        } else {
+            const isNewType = type.includes('New');
+            const isMatch = isNewType ? cond.includes('NEW') : cond.includes('USED');
+            if (isMatch) html += `<option value="${i}">${itemText} (ปัจจุบัน: ${qty})</option>`;
+        }
+    });
+    itemSelect.innerHTML = html;
+}
+
 function addToCart(dir) {
     const idx = document.getElementById('sw-it').value;
     const qt = parseInt(document.getElementById('sw-qt').value);
@@ -688,15 +724,25 @@ function addToCart(dir) {
         return;
     }
 
+    // สำหรับโหมดเคลม เช็คว่าของพอไหม ถ้าไม่พอให้จำไว้ว่าเป็นเคลมแบบรอสต็อก
+    let isOutOfStock = false;
+    if (dir === 'CLAIM' && item.qty < qt) {
+        isOutOfStock = true;
+    }
+
     const existingItem = cart.find(it => it.item === itemIdentifier);
     if (existingItem) {
         if (dir === 'OUT' && item.qty < (existingItem.qty + qt)) {
             Swal.showValidationMessage(`สต็อกรวมในตะกร้าเกินจำนวนที่มี`);
             return;
         }
+        if (dir === 'CLAIM' && item.qty < (existingItem.qty + qt)) {
+            isOutOfStock = true;
+        }
         existingItem.qty += qt;
+        existingItem.isOutOfStock = existingItem.isOutOfStock || isOutOfStock;
     } else {
-        cart.push({ id: "L" + Date.now(), item: itemIdentifier, qty: qt });
+        cart.push({ id: "L" + Date.now(), item: itemIdentifier, qty: qt, isOutOfStock: isOutOfStock });
     }
     renderCart();
 }
@@ -797,13 +843,10 @@ async function editRemark(id, oldRemark) {
 function updateModalItems(dir) {
     const typeSelect = document.getElementById('sw-t');
     const itemSelect = document.getElementById('sw-it');
-
     if (!typeSelect || !itemSelect) return;
-
     const type = typeSelect.value;
     let html = '<option value="">-- เลือกรายการหิน --</option>';
 
-    // ตรวจสอบว่ามีข้อมูลสต็อกหรือไม่
     if (!inventory || inventory.length === 0) {
         itemSelect.innerHTML = '<option value="">-- ไม่มีข้อมูลในคลัง --</option>';
         return;
@@ -815,21 +858,17 @@ function updateModalItems(dir) {
         const itemText = `${it.model} #${it.grit} (${it.condition})`;
 
         if (dir === 'OUT') {
-            // จ่ายออก: แสดงเฉพาะที่มีของ[cite: 4]
-            if (qty > 0) {
-                html += `<option value="${i}">${itemText} [คงเหลือ ${qty}]</option>`;
-            }
+            if (qty > 0) html += `<option value="${i}">${itemText} [คงเหลือ ${qty}]</option>`;
+        } else if (dir === 'CLAIM') {
+            // โหมดเคลม: แสดงหมดทั้งมีของและไม่มีของ
+            if (qty > 0) html += `<option value="${i}">${itemText} [คงเหลือ ${qty}]</option>`;
+            else html += `<option value="${i}">${itemText} [❌ สินค้าหมด]</option>`;
         } else {
-            // รับเข้า: แยกตาม New หรือ Used[cite: 4]
             const isNewType = type.includes('New');
             const isMatch = isNewType ? cond.includes('NEW') : cond.includes('USED');
-
-            if (isMatch) {
-                html += `<option value="${i}">${itemText} (ปัจจุบัน: ${qty})</option>`;
-            }
+            if (isMatch) html += `<option value="${i}">${itemText} (ปัจจุบัน: ${qty})</option>`;
         }
     });
-
     itemSelect.innerHTML = html;
 }
 
@@ -876,11 +915,10 @@ async function openClaimModal() {
         title: '<span style="font-size: 1.5rem; font-weight: 800; color: #8b5cf6;">🛡️ บันทึกเคลมสินค้า</span>',
         width: '95%',
         showConfirmButton: true,
-        confirmButtonText: '✅ บันทึกเคลม (ตัดสต็อก)',
+        confirmButtonText: '✅ บันทึกเคลม',
         confirmButtonColor: '#8b5cf6',
         html: `
         <input type="hidden" id="sw-t" value="เคลมสินค้า">
-        
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
             <div class="swal-group"><label class="swal-label">ทีมงาน / Sale</label>
                 <select id="sw-sl" class="swal-input-custom">${sales.map(s => `<option>${s}</option>`).join('')}</select>
@@ -898,7 +936,7 @@ async function openClaimModal() {
                     <input id="sw-qt" type="number" class="swal-input-custom" value="1" inputmode="numeric">
                 </div>
             </div>
-            <button type="button" onclick="addToCart('OUT')" style="width:100%; padding:8px; background:#8b5cf6; color:white; border:none; border-radius:10px; font-weight:800;">➕ เพิ่มรายการเคลม</button>
+            <button type="button" onclick="addToCart('CLAIM')" style="width:100%; padding:8px; background:#8b5cf6; color:white; border:none; border-radius:10px; font-weight:800;">➕ เพิ่มรายการเคลม</button>
         </div>
         <div id="cart-display" style="margin:10px 0;"></div>
         <div class="swal-group"><label class="swal-label">หมายเหตุ (Remark)</label>
@@ -907,7 +945,7 @@ async function openClaimModal() {
         <button type="button" class="btn-close-modal" onclick="Swal.close()">❌ ปิดหน้าต่าง</button>
         `,
         didOpen: () => {
-            updateModalItems('OUT'); // สั่งให้ดึงรายการที่มีในคลัง (จำนวน > 0) มาแสดง
+            updateModalItems('CLAIM'); // ใช้โหมดใหม่
         },
         preConfirm: () => {
             const cust = document.getElementById('sw-cs').value.trim();
@@ -918,14 +956,17 @@ async function openClaimModal() {
             const rmk = document.getElementById('sw-rmk').value;
             const ts = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('th-TH');
 
+            // เช็คว่าในตะกร้ามีรายการไหนของหมดสต็อกหรือไม่
+            const hasOutOfStock = cart.some(it => it.isOutOfStock);
+
             return [{
                 id: "L" + Date.now().toString(),
                 date: ts,
                 sale: sl,
                 cust: cust,
                 typeLabel: 'เคลมสินค้า',
-                direction: 'OUT',
-                status: 'WAITING_CLAIM',
+                direction: hasOutOfStock ? 'NONE' : 'OUT', // NONE = ไม่หักสต็อก, OUT = หักสต็อก
+                status: hasOutOfStock ? 'WAITING_STOCK' : 'WAITING_CLAIM', // สถานะแยกกัน
                 item: cart.map(it => `${it.item} x${it.qty}`).join(', '),
                 qty: cart.reduce((sum, i) => sum + Number(i.qty), 0),
                 remark: rmk,
@@ -958,5 +999,62 @@ async function closeClaim(targetId) {
         await syncAction('closeClaim', {
             id: log.id, item: log.item, qty: log.qty, cust: log.cust, sale: log.sale
         });
+    }
+}
+// --- ฟังก์ชันกดปุ่ม เคลม (กรณีรอของเข้า) ---
+async function processStockClaim(targetId) {
+    const log = allLogs.find(l => l.id === targetId);
+    if (!log) return Swal.fire('ข้อผิดพลาด', 'ไม่พบข้อมูลรายการนี้', 'error');
+
+    const result = await Swal.fire({
+        title: 'สินค้าเข้าคลังแล้วใช่หรือไม่?',
+        text: `ยืนยันเคลม ${log.item} จำนวน ${log.qty} ก้อน (ระบบจะตัดสต็อกและปิดงานทันที)`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#f43f5e',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: '⚡ ยืนยันตัดสต็อก',
+        cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
+        await syncAction('processStockClaim', {
+            id: log.id, 
+            item: log.item, 
+            qty: log.qty, 
+            cust: log.cust, 
+            sale: log.sale
+        });
+    }
+}
+async function syncAction(action, payload) {
+    Swal.fire({
+        title: 'กำลังบันทึก...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action, ...payload })
+        });
+
+        const result = await response.json();
+
+        if (result.status === "success") {
+            await fetchData();
+            await Swal.fire('สำเร็จ', 'ตัดสต็อกและปิดงานเคลมเรียบร้อยแล้ว', 'success');
+        }
+        // 🛡️ จุดนี้สำคัญ: ถ้า Google Script ส่ง status: "error" มา
+        else if (result.status === "error") {
+            Swal.fire('แจ้งเตือน', result.message || 'เกิดข้อผิดพลาด', 'error');
+        }
+        else {
+            throw new Error(result.message || 'เกิดข้อผิดพลาดที่เซิร์ฟเวอร์');
+        }
+    } catch (e) {
+        console.error("Sync Error:", e);
+        Swal.fire('แจ้งเตือน', e.message || 'ไม่สามารถเชื่อมต่อได้', 'error');
     }
 }

@@ -218,7 +218,7 @@
         .card-title {
             font-weight: 800;
             color: var(--primary-green);
-            font-size: 1rem;
+            font-size: 1.2rem;
             margin-bottom: 12px;
             display: flex;
             align-items: center;
@@ -226,7 +226,7 @@
         }
 
         #dash-page .card:has(#d-trial-list) .card-title {
-            font-size: 1.1rem !important;
+            font-size: 1rem !important;
             /* สั่งลดขนาดลงมาเหลือ 0.95rem ให้พอดีกับสัดส่วนมือถือ */
             border-bottom: 2px solid var(--orange);
             /* เพิ่มเส้นใต้สีส้มซอฟต์ๆ แบ่งสัดส่วนให้สวยงามเหมือนบน PC */
@@ -313,8 +313,8 @@
         }
 
         /* =========================================
-   NEW SPLASH SCREEN (LOADING SYSTEM)
-========================================= */
+            NEW SPLASH SCREEN (LOADING SYSTEM)
+        ========================================= */
         #loading {
             position: fixed;
             top: 0;
@@ -533,7 +533,7 @@
             display: grid;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             margin: 0 -12px 15px -12px;
-            grid-template-columns: 200px 200px !important;
+            grid-template-columns: 190px 190px !important;
             gap: 4px !important;
             justify-content: center;
             border-radius: 0 0 20px 20px;
