@@ -1,5 +1,5 @@
 
-const API_URL = "https://script.google.com/macros/s/AKfycby_8TcjuIoD_0Ce-n8QpZFO8B8n1xTfSD9adsgZe4S8ZiEwvpEht1rJceMFfGP7qZ5kMg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzJ8HJ1FlVckHAwJxkGJbySBbDfrtcEoxYR9tbxSBqhYv3smR4U1qqQC4mwnA57EF7Jvw/exec";
 const _0x4c2b = [49, 57, 48, 57, 49, 53, 49, 50];
 const ADMIN_PASS = _0x4c2b.map(code => String.fromCharCode(code)).join('');
 let inventory = [], sales = [], customers = [], allLogs = [], isAdmin = false, cart = [];
