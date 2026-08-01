@@ -1,1062 +1,871 @@
-        :root {
-            --primary-green: #064e3b;
-            --accent-green: #10b981;
-            --danger-red: #ef4444;
-            --bg-body: #f1f5f9;
-            --text-main: #0f172a;
-            --text-sub: #475569;
-            --white: #ffffff;
-            --nav-bg: #1e293b;
-            --orange: #f59e0b;
-        }
+:root {
+    --primary-green: #0e4a38;
+    --primary-green-dark: #062f24;
+    --accent-green: #12a37a;
+    --accent-green-light: #4fd8a6;
+    --danger-red: #d94f4f;
+    --orange: #e08a3c;
+    --purple: #7c5cd4;
+    --bg-body: #f3efe4;
+    --surface: #ffffff;
+    --text-main: #1c2620;
+    --text-sub: #6b6b63;
+    --border-soft: #e7e2d3;
+    --white: #ffffff;
+    --nav-bg: #0c2b22;
+}
 
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
 
-        body {
-            font-family: 'Anuphan', sans-serif;
-            background-color: var(--bg-body);
-            margin: 0;
-            padding-bottom: calc(100px + env(safe-area-inset-bottom));
-            min-height: 100vh;
-            min-height: 100dvh;
-            overflow-x: hidden;
-        }
+body {
+    font-family: 'Anuphan', sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    padding-bottom: calc(100px + env(safe-area-inset-bottom));
+}
 
-        header {
-            background: var(--primary-green);
-            padding: 12px 15px;
-            color: var(--white);
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            padding-top: calc(12px + env(safe-area-inset-top));
-        }
+button, select, input {
+    font-family: 'Anuphan', sans-serif;
+}
 
-        .header-content {
-            width: 100%;
-            max-width: 600px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 600px;
-            padding: 12px;
-            margin: 0 auto;
-            position: relative;
-            z-index: 1;
-        }
-
-        .page {
-            display: none;
-        }
-
-        .page.active {
-            display: block;
-            animation: fadeIn 0.2s ease;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        .refresh-btn {
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 5px;
-            transition: opacity 0.2s;
-        }
-
-        .refresh-btn svg {
-            width: 24px;
-            height: 24px;
-            fill: currentColor;
-        }
-
-        .spinning {
-            animation: rotate-ani 1s linear infinite;
-        }
-
-        @keyframes rotate-ani {
-            from {
-                transform: rotate(0deg);
-            }
-
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .bottom-nav {
-            position: fixed;
-            bottom: calc(15px + env(safe-area-inset-bottom));
-            left: 50%;
-            transform: translateX(-50%);
-            width: 92%;
-            padding-bottom: env(safe-area-inset-bottom);
-            max-width: 500px;
-            background: var(--nav-bg);
-            border-radius: 25px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-            padding: 0 10px;
-            display: block !important;
-        }
-
-        .nav-content {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            height: 70px;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .nav-item {
-            background: none;
-            border: none;
-            color: #94a3b8;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            flex: 1;
-            cursor: pointer;
-            font-family: 'Anuphan';
-            font-size: 0.9rem;
-            transition: all 0.2s ease;
-        }
-
-        .nav-item.active {
-            color: var(--accent-green) !important;
-            background: rgba(16, 185, 129, 0.1);
-            border-radius: 12px;
-            transform: scale(1.1);
-            transition: all 0.2s ease;
-        }
-
-        .stat-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 6px;
-            margin-bottom: 12px;
-        }
-
-        .stat-item {
-            background: white;
-            padding: 10px 6px !important;
-            /* ลด padding ซ้าย-ขวา เพื่อเพิ่มพื้นที่ให้ข้อความยืนได้เต็มบรรทัดขึ้น */
-            border-radius: 14px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            border-left: 4px solid var(--accent-green);
-
-            /* ใช้ Flexbox ดึงให้เนื้อหาด้านในจัดระยะบน-ล่างให้เท่ากันทุกกล่อง */
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            min-height: 95px;
-            /* ล็อคความสูงรวมของกล่องให้เท่ากันทั้งหมด */
-            box-sizing: border-box;
-        }
-
-        /* 💡 ส่วนสำคัญที่สุด: จัดระเบียบหัวข้อ */
-        .stat-item small:first-child {
-            display: block;
-            min-height: 32px;
-            /* ล็อคความสูงพื้นที่หัวข้อไว้ 32px เพื่อให้ตัวเลขด้านล่างเริ่มต้นที่ระดับเดียวกันเป๊ะ */
-            font-size: 0.72rem !important;
-            /* ปรับขนาดฟอนต์บนมือถือให้เล็กลงเล็กน้อยเพื่อลดการตัดคำ */
-            line-height: 1.2;
-            color: var(--text-sub);
-            font-weight: 700;
-        }
-
-        /* ปรับระดับตัวเลขสถิติ */
-        .stat-item div[id^="d-"],
-        .stat-item #total-claim-dash {
-            font-size: 1.25rem !important;
-            font-weight: 800;
-            line-height: 1.1;
-            margin: 2px 0;
-        }
-
-        /* ปรับระดับหน่วยนับด้านล่างสุด */
-        .stat-item small:last-child {
-            font-size: 0.65rem !important;
-            color: var(--text-sub);
-            display: block;
-        }
-
-        .card {
-            background: white;
-            padding: 18px;
-            border-radius: 20px;
-            margin-bottom: 12px;
-            border: 1px solid #e2e8f0;
-        }
-
-        .card-title {
-            font-weight: 800;
-            color: var(--primary-green);
-            font-size: 1.2rem;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        #dash-page .card:has(#d-trial-list) .card-title {
-            font-size: 1rem !important;
-            /* สั่งลดขนาดลงมาเหลือ 0.95rem ให้พอดีกับสัดส่วนมือถือ */
-            border-bottom: 2px solid var(--orange);
-            /* เพิ่มเส้นใต้สีส้มซอฟต์ๆ แบ่งสัดส่วนให้สวยงามเหมือนบน PC */
-            padding-bottom: 6px;
-        }
-
-        .swal-input-custom {
-            width: 100%;
-            height: 45px;
-            border-radius: 12px;
-            border: 1.5px solid #e2e8f0;
-            padding: 0 12px;
-            font-family: 'Anuphan';
-            font-size: 0.95rem;
-            outline: none;
-            margin-bottom: 5px;
-        }
-
-        .swal-group+button[onclick*="addToCart"] {
-            margin-top: 12px !important;
-            /* ดันปุ่มลงมาด้านล่าง ไม่ให้เกยกับช่องเลือกรายการ */
-        }
-
-        button[onclick="addToCart('OUT')"] {
-            padding: 10px !important;
-            font-size: 0.9rem !important;
-            border-radius: 10px !important;
-            box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2);
-            /* เพิ่มเงานุ่มๆ สีม่วง */
-        }
-
-        .swal-label {
-            font-size: 0.75rem;
-            font-weight: 800;
-            color: var(--text-sub);
-            margin-bottom: 6px;
-            display: block;
-            padding-left: 4px;
-        }
-
-        .stock-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #f1f5f9;
-        }
-
-        .badge {
-            padding: 2px 8px;
-            border-radius: 6px;
-            font-size: 0.65rem;
-            font-weight: 800;
-            text-transform: uppercase;
-        }
-
-        .badge-new {
-            background-color: rgba(46, 204, 113, 0.15);
-            /* เขียวจางๆ */
-            color: var(--accent-green);
-            padding: 2px 8px;
-            border-radius: 5px;
-            font-size: 0.7rem;
-            font-weight: bold;
-        }
-
-        .badge-used {
-            background-color: rgba(230, 126, 34, 0.15);
-            /* ส้มจางๆ */
-            color: var(--orange);
-            padding: 2px 8px;
-            border-radius: 5px;
-            font-size: 0.7rem;
-            font-weight: bold;
-        }
-
-        .spin-loader {
-            width: 30px;
-            height: 30px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid var(--accent-green);
-            border-radius: 50%;
-            animation: rotate-ani 1s linear infinite;
-        }
-
-        /* =========================================
-            NEW SPLASH SCREEN (LOADING SYSTEM)
-        ========================================= */
-        #loading {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #064e3b;
-            /* ใช้สีหลักของคุณ */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-            transition: opacity 0.5s ease;
-        }
-
-        .loading-content {
-            text-align: center;
-            color: white;
-        }
-
-        /* สไตล์โลโก้ RDS */
-        .logo-wrapper {
-            position: relative;
-            margin-bottom: 10px;
-        }
-
-        .logo-text {
-            font-size: 5rem;
-            font-weight: 900;
-            margin: 0;
-            letter-spacing: -2px;
-            font-family: 'Inter', sans-serif;
-            animation: pulseText 2s ease-in-out infinite;
-            position: relative;
-            z-index: 2;
-        }
-
-        .logo-glow {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 120px;
-            height: 120px;
-            background: var(--accent-green);
-            filter: blur(40px);
-            opacity: 0.5;
-            border-radius: 50%;
-            animation: glowPulse 2s ease-in-out infinite;
-        }
-
-        /* สไตล์ตัวหนังสือตัวเล็ก */
-        .sub-text {
-            font-size: 0.9rem;
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            opacity: 0.8;
-            margin-bottom: 30px;
-            font-weight: 300;
-        }
-
-        /* สไตล์ System Loading + จุดวิ่ง */
-        .loading-status {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .status-text {
-            font-size: 0.85rem;
-            font-weight: 500;
-            opacity: 0.6;
-        }
-
-        .dot-flashing {
-            position: relative;
-            width: 6px;
-            height: 6px;
-            border-radius: 5px;
-            background-color: var(--accent-green);
-            color: var(--accent-green);
-            animation: dotFlashing 1s infinite linear alternate;
-            animation-delay: .5s;
-        }
-
-        .dot-flashing::before,
-        .dot-flashing::after {
-            content: '';
-            display: inline-block;
-            position: absolute;
-            top: 0;
-        }
-
-        .dot-flashing::before {
-            left: -12px;
-            width: 6px;
-            height: 6px;
-            border-radius: 5px;
-            background-color: var(--accent-green);
-            color: var(--accent-green);
-            animation: dotFlashing 1s infinite linear alternate;
-            animation-delay: 0s;
-        }
-
-        .dot-flashing::after {
-            left: 12px;
-            width: 6px;
-            height: 6px;
-            border-radius: 5px;
-            background-color: var(--accent-green);
-            color: var(--accent-green);
-            animation: dotFlashing 1s infinite linear alternate;
-            animation-delay: 1s;
-        }
-
-        /* =========================================
-   ANIMATIONS
+/* =========================================
+    LOGO BADGE (shared: loading screen + header)
 ========================================= */
-        @keyframes pulseText {
-
-            0%,
-            100% {
-                transform: scale(1);
-                opacity: 1;
-            }
-
-            50% {
-                transform: scale(1.05);
-                opacity: 0.8;
-            }
-        }
-
-        @keyframes glowPulse {
-
-            0%,
-            100% {
-                transform: translate(-50%, -50%) scale(1);
-                opacity: 0.3;
-            }
-
-            50% {
-                transform: translate(-50%, -50%) scale(1.3);
-                opacity: 0.6;
-            }
-        }
-
-        @keyframes dotFlashing {
-            0% {
-                background-color: var(--accent-green);
-            }
-
-            50%,
-            100% {
-                background-color: rgba(16, 185, 129, 0.2);
-            }
-        }
-
-        .btn-line {
-            background: #00b900;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 12px;
-            font-weight: 800;
-            width: 100%;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-
-        .btn-confirm-sale {
-            background: var(--orange);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 0.65rem;
-            padding: 4px 8px;
-            margin-top: 6px;
-            font-weight: 800;
-            box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
-        }
-
-        .cart-table {
-            width: 100%;
-            font-size: 0.75rem;
-            border-collapse: collapse;
-            margin-top: 15px;
-            border: 1px solid #eee;
-        }
-
-        .cart-table th {
-            background: #f8fafc;
-            padding: 8px;
-            text-align: left;
-        }
-
-        .cart-table td {
-            padding: 8px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .admin-only {
-            display: none;
-        }
-
-        .admin-active .admin-only {
-            display: block;
-        }
-
-        .action-bar {
-            position: sticky;
-            top: calc(55px + env(safe-area-inset-top));
-            z-index: 900;
-            background: var(--bg-body);
-            padding: 10px 12px;
-            display: grid;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            margin: 0 -12px 15px -12px;
-            grid-template-columns: 190px 190px !important;
-            gap: 4px !important;
-            justify-content: center;
-            border-radius: 0 0 20px 20px;
-            margin: 0 auto 15px auto !important;
-            border-radius: 12px !important;
-        }
-
-        .btn-action {
-            padding-top: 8px !important;
-            padding-bottom: 8px !important;
-
-            /* คงขนาดฟอนต์เดิมตามที่คุณพอใจ */
-            font-size: 1.2rem !important;
-            font-family: 'Anuphan', sans-serif !important;
-            font-weight: 700 !important;
-            border-radius: 50px !important;
-            box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.15), -2px -2px 6px rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
-
-            /* ควบคุมความกว้างคงเดิมไม่ให้ล้นจอ */
-            width: 80% !important;
-            max-width: 280px !important;
-            display: block !important;
-
-            /* 🛠️ แก้ไขจุดนี้เพื่อลดระยะห่าง บน-ล่าง ระหว่างปุ่มลง */
-            margin: 6px auto !important;
-            /* ปรับลดจาก 12px เหลือ 6px เพื่อให้ปุ่มขยับชิดกระชับกันอย่างเป็นระเบียบ */
-
-            padding-left: 10px !important;
-            padding-right: 10px !important;
-            box-sizing: border-box !important;
-            white-space: nowrap;
-        }
-
-        .btn-action:hover {
-            transform: translateY(-2px);
-            box-shadow:
-                6px 6px 12px rgba(0, 0, 0, 0.25),
-                -3px -3px 8px rgba(255, 255, 255, 0.25);
-        }
-
-        .btn-action:active {
-            transform: translateY(1px);
-            box-shadow:
-                inset 4px 4px 6px rgba(0, 0, 0, 0.3),
-                inset -2px -2px 4px rgba(255, 255, 255, 0.1);
-        }
-
-        button,
-        .card,
-        select,
-        input,
-        .stat-item,
-        .nav-item,
-        .swal-input-custom {
-            border-radius: 12px !important;
-        }
-
-        /* สำหรับปุ่มนำทางด้านล่างให้มีความมนเป็นพิเศษ */
-        .bottom-nav {
-            border-radius: 25px !important;
-        }
-
-        /* --- ส่วนที่ 1: แก้ไข Menu ให้ล็อคตำแหน่งและดูดีขึ้น --- */
-        .bottom-nav {
-            position: fixed !important;
-            /* ล็อคให้นิ่ง */
-            bottom: 20px !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-            width: 95% !important;
-            max-width: 800px !important;
-            /* บน PC ให้กว้างพอประมาณ */
-            background: rgba(30, 41, 59, 0.8) !important;
-            /* พื้นหลังโปร่งแสง */
-            backdrop-filter: blur(10px);
-            /* เอฟเฟกต์กระจกฝ้า */
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px !important;
-            z-index: 1000 !important;
-        }
-
-        @media (max-width: 768px) {
-            .swal2-popup.swal2-show {
-                /* ดันขึ้นด้านบนเพื่อให้มีพื้นที่สำหรับ Keyboard */
-                vertical-align: top !important;
-                margin-top: 10px !important;
-            }
-
-            /* ปรับให้รายการลูกค้าไม่ออกมานอกขอบจอ */
-            .swal2-html-container {
-                overflow: visible !important;
-            }
-
-            .swal2-popup {
-                padding-left: 0.5rem !important;
-                /* ลดระยะห่างซ้าย */
-                padding-right: 0.5rem !important;
-                /* ลดระยะห่างขวา */
-            }
-
-            .swal-group {
-                width: 100% !important;
-                /* บังคับให้ Group กว้างเต็มพื้นที่ */
-            }
-
-            .swal-input-custom {
-                width: 100% !important;
-                /* บังคับให้ช่องกรอกยืดเต็ม */
-            }
-        }
-
-        /* --- ส่วนที่ 2: ปรับปรุง Layout สำหรับหน้าจอ PC --- */
-        @media (min-width: 1024px) {
-            body {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                background-color: #e2e8f0;
-                /* เปลี่ยนสีพื้นหลังขอบนอกให้เข้มขึ้นนิดนึง */
-            }
-
-            header,
-            .page,
-            .bottom-nav {
-                width: 100%;
-                max-width: 800px;
-                /* จำกัดความกว้างเนื้อหาให้อยู่ตรงกลางจอ */
-                margin: 0 auto;
-            }
-
-            .bottom-nav {
-                left: 50%;
-                transform: translateX(-50%);
-                /* จัดเมนูให้อยู่กลางจอ PC */
-                border-radius: 20px 20px 0 0;
-                /* ทำมุมโค้งให้ดูเหมือนแอป */
-            }
-
-            .container {
-                max-width: 1200px;
-                /* ขยายขอบเขตเนื้อหาบน PC */
-                margin: 0 auto;
-            }
-
-            #dash-page .dashboard-container {
-                display: flex;
-                flex-direction: column;
-                gap: 15px;
-                width: 100%;
-                /* บังคับความกว้างให้เต็มตั้งแต่แรก */
-            }
-
-            .stat-grid {
-                grid-column: 1;
-                /* ล็อคให้อยู่ฝั่งซ้ายด้านบน */
-                display: grid !important;
-                grid-template-columns: repeat(3, 1fr) !important;
-                gap: 12px !important;
-                margin-bottom: 18px !important;
-                /* ✨ เปลี่ยนเป็น 18px เพื่อเว้นระยะห่างด้านล่างให้สวยงาม */
-            }
-
-            .stat-item {
-                min-height: 120px !important;
-                padding: 18px 15px !important;
-                /* คืนค่า Padding ขนาดใหญ่สำหรับหน้าจอ PC */
-            }
-
-            .stat-item small:first-child {
-                font-size: 1.2rem !important;
-                min-height: auto !important;
-                /* ปลดล็อคความสูงขั้นต่ำบน PC ให้ขยายตามธรรมชาติ */
-            }
-        }
-
-        .stat-item div[id^="d-"],
-        .stat-item #total-claim-dash {
-            font-size: 2rem !important;
-            /* ขยายขนาดตัวเลขให้ใหญ่ชัดเจนเท่ากันทั้ง 3 กล่องบน PC */
-        }
-
-        /* 2. จัดระเบียบ Card ข้อมูล */
-        #dash-page .card:nth-child(2) .card-title {
-            font-size: 1.4rem !important;
-            /* ขยายจาก 1rem เป็น 1.4rem */
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--accent-green);
-            /* เพิ่มเส้นใต้ให้ดูเป็นสัดส่วน */
-            margin-bottom: 15px;
-        }
-
-        /* ปรับขนาดตัวอักษรในรายการกิจกรรมให้ใหญ่ตาม */
-        #d-today-activity b {
-            font-size: 1.3rem !important;
-        }
-
-        #d-today-activity small {
-            font-size: 0.85rem !important;
-        }
-
-        /* "สต็อกคงเหลือ" อยู่ฝั่งขวาบน */
-        #dash-page>.card:nth-child(3) {
-            grid-column: 2;
-            grid-row: 1;
-            /* แถวที่ 1 ฝั่งขวา */
-            margin-bottom: 0;
-        }
-
-        #dash-page>.card:nth-child(4) {
-            grid-column: 2;
-            grid-row: 2;
-            /* แถวที่ 2 ฝั่งขวา */
-        }
-
-        /* ปรับปรุง Card ให้ดูพรีเมียม */
-        .card {
-            border: none !important;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
-            transition: transform 0.2s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .bottom-nav {
-            max-width: 500px !important;
-            /* บีบเมนูให้เหลือความกว้าง 500px */
-            width: 90% !important;
-            /* เผื่อพื้นที่ข้างเล็กน้อย */
-            left: 50% !important;
-            /* ขยับจุดเริ่มต้นไปที่กลางจอ */
-            transform: translateX(-50%) !important;
-            /* ดึงกลับมาให้กึ่งกลางพอดี */
-            bottom: 20px !important;
-            /* ยกให้ลอยขึ้นจากขอบล่าง 20px */
-            border-radius: 25px !important;
-            /* ปรับขอบให้มนโค้งเข้ากับดีไซน์ */
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3) !important;
-            /* เพิ่มเงาให้ดูมีมิติ */
-        }
-
-        #stock-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-        }
-
-        /* ปรับแต่งภายใน Card ให้แบ่งซ้าย-ขวา */
-        .stock-card-split {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        .stock-col {
-            flex: 1;
-            text-align: center;
-            padding: 5px;
-        }
-
-        .stock-col:first-child {
-            border-right: 1px solid #f1f5f9;
-        }
-
-        #stock-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 15px;
-        }
-
-        /* 1. หัวข้อ Card (⏳ รายการที่อยู่ระหว่างทดลอง...) */
-        #dash-page .card:last-child .card-title {
-            font-size: 1.4rem !important;
-            /* ปรับหัวข้อให้ใหญ่ขึ้น */
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--orange);
-        }
-
-        /* 2. หัวตาราง (ลูกค้า / หิน / ระยะเวลา) */
-        #dash-page .card:last-child table thead th {
-            font-size: 1.1rem !important;
-            padding: 12px 8px !important;
-        }
-
-        /* 3. เนื้อหาในตาราง (ชื่อลูกค้า และ รายการหิน) */
-        #d-trial-list td b {
-            font-size: 1.5rem !important;
-            /* ชื่อลูกค้าและจำนวนหิน */
-        }
-
-        #d-trial-list td {
-            font-size: 1.1rem !important;
-            padding: 15px 8px !important;
-            /* เพิ่มระยะห่างให้ดูโปร่งขึ้น */
-        }
-
-        /* 4. กล่องตัวเลขระยะเวลา (วัน) */
-        #d-trial-list span {
-            font-size: 1.2rem !important;
-            font-weight: 500;
-        }
-
-        /* จำกัดความกว้างของ SweetAlert2 บนคอมพิวเตอร์ */
-        .swal2-popup {
-            width: 600px !important;
-            max-width: 90% !important;
-        }
-
-        /* ปรับ Layout ภายใน Modal ให้ดูเป็นระเบียบขึ้น */
-        .swal-group {
-            margin-bottom: 15px !important;
-        }
-
-        .swal-label {
-            font-size: 0.9rem !important;
-            /* เพิ่มขนาด Label ให้อ่านง่ายบนจอใหญ่ */
-        }
-
-        /* ปรับแต่งช่อง Input ใน Modal ให้ใหญ่ขึ้นเล็กน้อย */
-        .swal-input-custom,
-        .swal2-select {
-            height: 50px !important;
-            font-size: 1rem !important;
-        }
-
-        /* ปรับตารางรายการในตะกร้า (Cart) ให้ดูชัดเจน */
-        .cart-table {
-            font-size: 0.95rem !important;
-        }
-
-        #log-list {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-        }
-
-        /* เมื่อเป็นหน้าจอ PC ขนาดปกติขึ้นไป */
-        @media (min-width: 1200px) {
-            #log-list {
-                grid-template-columns: repeat(3, 1fr);
-                /* แสดง 3 คอลัมน์ */
-            }
-
-            /* ปรับแต่ง Card ในหน้าประวัติให้สูงเท่ากันเพื่อความสวยงาม */
-            #log-list .card {
-                height: 100%;
-                margin-bottom: 0;
-                /* ใช้ Gap แทน Margin */
-                display: flex;
-                flex-direction: column;
-                justify-content: space-between;
-            }
-        }
-
-        @media (min-width: 768px) {
-            #log-list {
-                grid-template-columns: repeat(2, 1fr);
-                /* แสดง 2 คอลัมน์ */
-            }
-        }
-
-        .stat-item small:first-child {
-            font-size: 0.9rem !important;
-            /* ขนาดสำหรับมือถือ */
-            font-weight: 700;
-        }
-
-        /* ปรับระยะห่างของเนื้อหาไม่ให้ถูกเมนูบัง */
-        body {
-            padding-bottom: 120px !important;
-        }
-
-        .btn-close-modal {
-            background: #f1f5f9 !important;
-            color: #475569 !important;
-            border: 1px solid #e2e8f0 !important;
-            width: 100%;
-            padding: 10px;
-            border-radius: 10px;
-            font-weight: 800;
-            margin-top: 8px;
-            cursor: pointer;
-        }
-
-        /* เจาะจงปรับขนาดฟอนต์ช่องค้นหาในหน้า Log */
-        #log-page .swal-input-custom {
-            font-size: 1.0rem !important;
-            /* ปรับขนาดตัวอักษรที่พิมพ์ */
-            height: 50px !important;
-            /* เพิ่มความสูงช่องให้สมดุลกับฟอนต์ */
-        }
-
-        /* ปรับขนาดตัวอักษรคำแนะนำ (Placeholder) */
-        #log-page #search-text::placeholder {
-            font-size: 0.8rem !important;
-            opacity: 0.7;
-        }
-
-        /* ปรับขนาดตัวอักษรในช่องเลือกวันที่ */
-        #log-page #search-date {
-            font-size: 0.8rem !important;
-        }
-
-        /* กำหนด Layout พื้นฐานสำหรับทุกอุปกรณ์ */
-        #log-list {
-            display: grid;
-            gap: 12px;
-            /* ระยะห่างระหว่าง Card */
-            grid-template-columns: 1fr;
-            /* เริ่มต้นที่ 1 คอลัมน์ (มือถือ) */
-            align-items: start;
-        }
-
-        /* --- ปรับแต่ง SweetAlert2 ให้พรีเมียมสไตล์ RDS --- */
-
-        /* 1. ปรับแต่งตัวกล่องข้อความ (Popup) */
-        .swal2-popup {
-            font-family: 'Anuphan', sans-serif !important;
-            border-radius: 24px !important;
-            /* มนพิเศษเข้ากับดีไซน์ใหม่ */
-            padding-left: 1rem !important;
-            /* ลดระยะห่างซ้าย */
-            padding-right: 1rem !important;
-            /* ลดระยะห่างขวา */
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
-        }
-
-        /* 2. ปรับแต่งหัวข้อและเนื้อหา */
-        .swal2-title {
-            font-weight: 800 !important;
-            color: var(--primary-green) !important;
-        }
-
-        .swal2-html-container {
-            font-size: 1rem !important;
-            color: var(--text-sub) !important;
-        }
-
-        /* 3. ปรับแต่งปุ่มกด (Buttons) */
-        .swal2-confirm {
-            background-color: var(--primary-green) !important;
-            /* เขียวเข้ม C2TECH */
-            border-radius: 12px !important;
-            padding: 12px 30px !important;
-            font-weight: 700 !important;
-            box-shadow: 0 4px 10px rgba(6, 78, 59, 0.2) !important;
-        }
-
-        .swal2-cancel {
-            border-radius: 12px !important;
-            padding: 12px 30px !important;
-            font-weight: 700 !important;
-        }
-
-        /* 4. ปรับแต่ง Input (เช่น หน้า Login Admin) */
-        .swal2-input {
-            border-radius: 12px !important;
-            border: 1.5px solid #e2e8f0 !important;
-            font-family: 'Anuphan', sans-serif !important;
-        }
-
-        /* 5. ปรับแต่ง Icon (Success/Error) */
-        .swal2-icon.swal2-success {
-            border-color: var(--accent-green) !important;
-        }
-
-        .swal2-success-ring {
-            border: .25em solid rgba(16, 185, 129, .3) !important;
-        }
-
-        /* เจาะจงปรับขนาดฟอนต์ในตารางค้างทดลอง */
-        #d-trial-list td,
-        #d-trial-list td b {
-            font-size: 1rem !important;
-            /* ปรับขนาดข้อมูลในตาราง */
-        }
-
-        #dash-page .card table thead th {
-            font-size: 0.75rem !important;
-            /* ปรับขนาดหัวตาราง (ลูกค้า/หิน/ระยะเวลา) */
-            font-weight: 700;
-        }
-
-        #d-trial-list span {
-            font-size: 0.8rem !important;
-            font-weight: 100;
-        }
-
-        .dashboard-container .card div[style*="display: flex"] {
-            gap: 4px !important;
-            /* เว้นระยะห่างระหว่างปุ่ม */
-        }
-
-        .dashboard-container .card button {
-            flex: 1;
-            /* บังคับให้ทั้ง 2 ปุ่มแบ่งครึ่งหน้าจอเท่ากันเป๊ะ */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            /* ระยะห่างระหว่างไอคอนกับตัวหนังสือ */
-            padding: 12px 5px !important;
-            /* เพิ่มความสูงปุ่มให้กดง่าย */
-            border-radius: 50px !important;
-            /* ทำทรงแคปซูล */
-            font-size: 0.95rem !important;
-            font-weight: 700 !important;
-            border: none !important;
-            transition: all 0.2s ease;
-            min-height: 45px;
-            /* บังคับความสูงขั้นต่ำให้เท่ากัน */
-        }
-
-        /* เพิ่ม Effect ตอนกดให้นุ่มนวล */
-        .dashboard-container .card button:active {
-            transform: scale(0.95);
-            opacity: 0.8;
-        }
+.logo-badge {
+    width: 78px;
+    height: 78px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 14px;
+}
+
+.logo-badge-text {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #eafff5;
+    letter-spacing: 1px;
+}
+
+.logo-badge-sm {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.logo-badge-sm .logo-badge-text {
+    font-size: 0.8rem;
+}
+
+/* =========================================
+    LOADING SCREEN
+========================================= */
+#loading {
+    position: fixed;
+    inset: 0;
+    background: var(--primary-green-dark);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    transition: opacity 0.5s ease;
+}
+
+.loading-content {
+    text-align: center;
+    color: white;
+}
+
+.sub-text {
+    font-size: 0.9rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    opacity: 0.8;
+    margin: 0 0 2px;
+    font-weight: 500;
+}
+
+.brand-tag {
+    font-size: 0.75rem;
+    color: var(--accent-green-light);
+    margin: 0 0 26px;
+    font-weight: 600;
+}
+
+.loading-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.status-text {
+    font-size: 0.85rem;
+    font-weight: 500;
+    opacity: 0.6;
+}
+
+.dot-flashing {
+    position: relative;
+    width: 6px;
+    height: 6px;
+    border-radius: 5px;
+    background-color: var(--accent-green-light);
+    animation: dotFlashing 1s infinite linear alternate;
+    animation-delay: .5s;
+}
+
+.dot-flashing::before,
+.dot-flashing::after {
+    content: '';
+    display: inline-block;
+    position: absolute;
+    top: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 5px;
+    background-color: var(--accent-green-light);
+    animation: dotFlashing 1s infinite linear alternate;
+}
+
+.dot-flashing::before { left: -12px; animation-delay: 0s; }
+.dot-flashing::after { left: 12px; animation-delay: 1s; }
+
+@keyframes dotFlashing {
+    0% { background-color: var(--accent-green-light); }
+    50%, 100% { background-color: rgba(79, 216, 166, 0.2); }
+}
+
+/* =========================================
+    HEADER
+========================================= */
+header {
+    background: var(--primary-green);
+    padding: 10px 16px;
+    color: var(--white);
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding-top: calc(10px + env(safe-area-inset-top));
+}
+
+.header-content {
+    width: 100%;
+    max-width: 1400px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 42px;
+}
+
+.brand-block {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.brand-title {
+    font-family: 'Anuphan', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+}
+
+.brand-sub {
+    font-size: 0.68rem;
+    opacity: 0.85;
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+.ver-chip {
+    background: rgba(255, 255, 255, 0.18);
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    font-size: 0.6rem;
+}
+
+.header-actions {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+
+.icon-btn svg {
+    width: 21px;
+    height: 21px;
+    fill: currentColor;
+    display: block;
+}
+
+.refresh-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    transition: opacity 0.2s;
+}
+
+.refresh-btn svg {
+    width: 22px;
+    height: 22px;
+    fill: currentColor;
+}
+
+.spinning {
+    animation: rotate-ani 1s linear infinite;
+}
+
+@keyframes rotate-ani {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* =========================================
+    APP SHELL (sidebar on desktop, single column mobile)
+========================================= */
+.app-shell {
+    display: flex;
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.sidebar {
+    display: none;
+}
+
+.main-area {
+    flex: 1;
+    min-width: 0;
+}
+
+.container {
+    width: 100%;
+    max-width: 600px;
+    padding: 12px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.page {
+    display: none;
+}
+
+.page.active {
+    display: block;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* =========================================
+    BOTTOM NAV (mobile)
+========================================= */
+.bottom-nav {
+    position: fixed;
+    bottom: calc(15px + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 92%;
+    max-width: 500px;
+    background: var(--nav-bg);
+    border-radius: 25px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    padding: 0 10px;
+}
+
+.nav-content {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    height: 68px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.nav-item {
+    background: none;
+    border: none;
+    color: #9db8ac;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex: 1;
+    cursor: pointer;
+    font-family: 'Anuphan', sans-serif;
+    font-size: 0.85rem;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.nav-item.active {
+    color: var(--accent-green-light) !important;
+    background: rgba(79, 216, 166, 0.12);
+    transform: scale(1.08);
+}
+
+/* =========================================
+    SIDEBAR (desktop nav — see media query for display)
+========================================= */
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px 18px;
+}
+
+.side-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    background: none;
+    border: none;
+    color: #a9c7ba;
+    font-size: 0.92rem;
+    font-weight: 600;
+    padding: 11px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+}
+
+.side-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #eafff5;
+}
+
+.side-item.active {
+    background: var(--accent-green);
+    color: #04241b;
+}
+
+.side-icon {
+    font-size: 1.05rem;
+}
+
+.sidebar-foot {
+    padding: 14px 18px calc(18px + env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-foot p {
+    margin: 0;
+    font-size: 0.72rem;
+    color: #eafff5;
+    font-weight: 600;
+}
+
+.sidebar-foot-sub {
+    color: #7fa696 !important;
+    font-weight: 400 !important;
+    margin-top: 2px !important;
+}
+
+/* =========================================
+    STAT GRID
+========================================= */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.stat-item {
+    background: var(--surface);
+    padding: 12px 8px;
+    border-radius: 14px;
+    border-left: 4px solid var(--accent-green);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 95px;
+}
+
+.stat-item small:first-child {
+    display: block;
+    min-height: 32px;
+    font-size: 0.72rem;
+    line-height: 1.2;
+    color: var(--text-sub);
+    font-weight: 700;
+}
+
+.stat-item div[id^="d-"],
+.stat-item #total-claim-dash {
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin: 2px 0;
+    color: var(--text-main);
+}
+
+.stat-item small:last-child {
+    font-size: 0.65rem;
+    color: var(--text-sub);
+    display: block;
+}
+
+/* =========================================
+    CARDS
+========================================= */
+.card {
+    background: var(--surface);
+    padding: 18px;
+    border-radius: 18px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border-soft);
+}
+
+.card-title {
+    font-weight: 800;
+    color: var(--primary-green);
+    font-size: 1.05rem;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dash-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.stock-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.badge {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.badge-new {
+    background-color: rgba(18, 163, 122, 0.14);
+    color: var(--accent-green);
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.badge-used {
+    background-color: rgba(224, 138, 60, 0.15);
+    color: var(--orange);
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+/* =========================================
+    BUTTONS
+========================================= */
+.btn-line {
+    background: #00b900;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 12px;
+    font-weight: 800;
+    width: 100%;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.btn-confirm-sale {
+    background: var(--orange);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    padding: 4px 8px;
+    margin-top: 6px;
+    font-weight: 800;
+}
+
+.btn-close-modal {
+    background: #f1efe4;
+    color: var(--text-sub);
+    border: 1px solid var(--border-soft);
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    font-weight: 800;
+    margin-top: 8px;
+    cursor: pointer;
+}
+
+.action-bar {
+    position: sticky;
+    top: calc(58px + env(safe-area-inset-top));
+    z-index: 900;
+    background: var(--bg-body);
+    padding: 10px 0;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 0 0 15px 0;
+}
+
+.btn-action {
+    padding: 12px 10px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    border-radius: 50px;
+    transition: all 0.2s ease;
+    flex: 1;
+    max-width: 220px;
+    cursor: pointer;
+}
+
+.btn-action:hover {
+    transform: translateY(-2px);
+}
+
+.btn-action:active {
+    transform: translateY(1px);
+}
+
+/* =========================================
+    STOCK LIST / LOG LIST / TABLES
+========================================= */
+#stock-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+}
+
+#log-list {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 1fr;
+    align-items: start;
+}
+
+.log-search-card {
+    position: sticky;
+    top: calc(58px + env(safe-area-inset-top));
+    z-index: 800;
+    padding: 12px;
+}
+
+.cart-table {
+    width: 100%;
+    font-size: 0.8rem;
+    border-collapse: collapse;
+    margin-top: 15px;
+    border: 1px solid var(--border-soft);
+}
+
+.cart-table th {
+    background: var(--bg-body);
+    padding: 8px;
+    text-align: left;
+}
+
+.cart-table td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+/* =========================================
+    MANAGE PAGE
+========================================= */
+.manage-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+}
+
+.manage-block-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.manage-add-btn {
+    color: var(--accent-green);
+    border: none;
+    background: none;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+/* =========================================
+    ADMIN VISIBILITY
+========================================= */
+.admin-only {
+    display: none;
+}
+
+.admin-active .admin-only {
+    display: block;
+}
+
+.admin-active .side-item.admin-only,
+.admin-active .nav-item.admin-only {
+    display: flex;
+}
+
+.admin-active .manage-add-btn.admin-only {
+    display: inline;
+}
+
+/* =========================================
+    FORM / SWEETALERT2 CUSTOM INPUTS
+========================================= */
+.swal-input-custom {
+    width: 100%;
+    height: 45px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border-soft);
+    padding: 0 12px;
+    font-family: 'Anuphan', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    margin-bottom: 5px;
+}
+
+.swal-label {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--text-sub);
+    margin-bottom: 6px;
+    display: block;
+    padding-left: 4px;
+}
+
+.swal-group {
+    margin-bottom: 12px;
+}
+
+.swal2-popup {
+    font-family: 'Anuphan', sans-serif !important;
+    border-radius: 22px !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15) !important;
+}
+
+.swal2-title {
+    font-weight: 800 !important;
+    color: var(--primary-green) !important;
+}
+
+.swal2-html-container {
+    font-size: 1rem !important;
+    color: var(--text-sub) !important;
+}
+
+.swal2-confirm {
+    background-color: var(--primary-green) !important;
+    border-radius: 12px !important;
+    padding: 12px 30px !important;
+    font-weight: 700 !important;
+}
+
+.swal2-cancel {
+    border-radius: 12px !important;
+    padding: 12px 30px !important;
+    font-weight: 700 !important;
+}
+
+.swal2-input {
+    border-radius: 12px !important;
+    border: 1.5px solid var(--border-soft) !important;
+    font-family: 'Anuphan', sans-serif !important;
+}
+
+.swal2-icon.swal2-success {
+    border-color: var(--accent-green) !important;
+}
+
+.swal2-success-ring {
+    border: .25em solid rgba(18, 163, 122, .3) !important;
+}
+
+@media (max-width: 768px) {
+    .swal2-popup.swal2-show {
+        vertical-align: top !important;
+        margin-top: 10px !important;
+    }
+
+    .swal2-html-container {
+        overflow: visible !important;
+    }
+
+    .swal2-popup {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+
+    .swal-group,
+    .swal-input-custom {
+        width: 100% !important;
+    }
+}
+
+/* =========================================
+    DESKTOP LAYOUT — sidebar takes over navigation
+========================================= */
+@media (min-width: 1024px) {
+    body {
+        padding-bottom: 0;
+    }
+
+    .header-content {
+        padding: 0 6px;
+    }
+
+    .app-shell {
+        min-height: calc(100vh - 66px);
+        align-items: flex-start;
+    }
+
+    .sidebar {
+        display: flex;
+        flex-direction: column;
+        width: 232px;
+        flex-shrink: 0;
+        background: var(--nav-bg);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        position: sticky;
+        top: 66px;
+        min-height: calc(100vh - 66px);
+    }
+
+    .bottom-nav {
+        display: none;
+    }
+
+    .main-area {
+        padding: 24px 32px 40px;
+    }
+
+    .container {
+        max-width: 1140px;
+        padding: 0;
+        margin: 0;
+    }
+
+    .stat-grid {
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .stat-item {
+        min-height: 110px;
+        padding: 16px 16px;
+    }
+
+    .stat-item small:first-child {
+        font-size: 0.85rem;
+        min-height: auto;
+    }
+
+    .stat-item div[id^="d-"],
+    .stat-item #total-claim-dash {
+        font-size: 1.9rem;
+    }
+
+    .dash-grid {
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+    }
+
+    .card {
+        border-radius: 16px;
+    }
+
+    .card-title {
+        font-size: 1.15rem;
+    }
+
+    .action-bar {
+        justify-content: flex-start;
+        top: 0;
+        position: relative;
+    }
+
+    .btn-action {
+        flex: 0 0 auto;
+        width: 220px;
+    }
+
+    #log-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .log-search-card {
+        position: relative;
+        top: 0;
+    }
+
+    .manage-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 1400px) {
+    #log-list {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
