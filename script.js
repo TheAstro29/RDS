@@ -888,7 +888,13 @@ async function syncAction(action, payload) {
             body: JSON.stringify({ action, ...payload })
         });
 
-        const result = await response.json();
+        const rawText = await response.text();
+        let result;
+        try {
+            result = JSON.parse(rawText);
+        } catch (parseErr) {
+            throw new Error('เชื่อมต่อ Google Script ไม่ได้ตามที่คาด (ได้รับข้อมูลที่ไม่ใช่ JSON) — โปรดตรวจสอบว่า Deploy เวอร์ชันล่าสุดแล้ว และสิทธิ์การเข้าถึงตั้งเป็น "Anyone"');
+        }
 
         if (result.status === "success") {
             await fetchData();
