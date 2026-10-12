@@ -377,22 +377,30 @@ function renderStock() {
     const n = groups.reduce((a, g) => a + g.newQty, 0), u = groups.reduce((a, g) => a + g.usedQty, 0);
     const lowN = groups.filter(g => g.low).length;
     const list = groups.filter(g => g.key.toLowerCase().includes(stockQuery.toLowerCase())).filter(g => stockFilter !== 'low' || g.low);
-    el.innerHTML = `
-    <div class="ptitle"><h1>คลังสินค้า</h1><small>${groups.length} รุ่น · กดการ์ดเพื่อดูประวัติรุ่น</small></div>
-    <div class="stock-sum">
+    // ช่องค้นหาคงไว้ตัวเดิม (เหตุผลเดียวกับหน้าประวัติ — คีย์บอร์ดบนจอไม่ปิดเอง)
+    if (!document.getElementById('stock-q')) {
+        el.innerHTML = `
+    <div class="ptitle"><h1>คลังสินค้า</h1><small id="stock-sub"></small></div>
+    <div class="stock-sum" id="stock-sum"></div>
+    <div class="toolbar">
+        <label class="search">🔍<input id="stock-q" type="search" placeholder="ค้นหารุ่น / เบอร์" autocomplete="off" enterkeyhint="search"></label>
+        <div class="chips" id="stock-chips"></div>
+    </div>
+    <div class="sgrid" id="stock-grid"></div>`;
+        const q = document.getElementById('stock-q');
+        q.value = stockQuery;
+        q.addEventListener('input', e => { stockQuery = e.target.value; renderStock(); });
+    }
+    document.getElementById('stock-sub').textContent = `${groups.length} รุ่น · กดการ์ดเพื่อดูประวัติรุ่น`;
+    document.getElementById('stock-sum').innerHTML = `
         <div><small>New</small><b style="color:var(--primary)">${fmtN(n)}</b></div>
         <div><small>Used</small><b style="color:#a35f12">${fmtN(u)}</b></div>
         <div><small>รวม</small><b>${fmtN(n + u)}</b></div>
-        <div class="pc-only"><small>ใกล้หมด</small><b style="color:#a35f12">${lowN} รุ่น</b></div>
-    </div>
-    <div class="toolbar">
-        <label class="search">🔍<input id="stock-q" type="search" placeholder="ค้นหารุ่น / เบอร์" value="${esc(stockQuery)}" autocomplete="off"></label>
-        <div class="chips">
+        <div class="pc-only"><small>ใกล้หมด</small><b style="color:#a35f12">${lowN} รุ่น</b></div>`;
+    document.getElementById('stock-chips').innerHTML = `
             <button class="chip ${stockFilter !== 'low' ? 'on' : ''}" onclick="stockFilter='all';renderStock()">ทั้งหมด <span class="n">${groups.length}</span></button>
-            <button class="chip ${stockFilter === 'low' ? 'on' : ''}" onclick="stockFilter='low';renderStock()"><span class="sw" style="background:var(--orange)"></span>ใกล้หมด <span class="n">${lowN}</span></button>
-        </div>
-    </div>
-    <div class="sgrid">${list.map(g => {
+            <button class="chip ${stockFilter === 'low' ? 'on' : ''}" onclick="stockFilter='low';renderStock()"><span class="sw" style="background:var(--orange)"></span>ใกล้หมด <span class="n">${lowN}</span></button>`;
+    document.getElementById('stock-grid').innerHTML = `${list.map(g => {
         const pct = Math.min(100, g.minStock > 0 ? g.newQty / (g.minStock * 2.5) * 100 : 100);
         const idx = groups.indexOf(g);
         return `<button class="scard ${g.low ? 'low' : ''}" onclick="openModelHistory(${idx})">
@@ -404,9 +412,7 @@ function renderStock() {
             </div>
             <span class="scard-tap">ดูประวัติรุ่นนี้ ›</span>
         </button>`;
-    }).join('') || '<div class="card empty">ไม่พบรุ่นที่ค้นหา</div>'}</div>`;
-    const q = document.getElementById('stock-q');
-    q.oninput = e => { stockQuery = e.target.value; const pos = e.target.selectionStart; renderStock(); const n2 = document.getElementById('stock-q'); n2.focus(); n2.setSelectionRange(pos, pos); };
+    }).join('') || '<div class="card empty">ไม่พบรุ่นที่ค้นหา</div>'}`;
 }
 
 async function openModelHistory(idx) {
@@ -495,12 +501,32 @@ function renderHist() {
         g.rows.push(l);
     });
     const filtered = st.kind !== 'all' || st.period !== 'all' || st.seller !== 'all' || st.q;
-    el.innerHTML = `
-    <div class="ptitle"><h1>ประวัติ</h1><small>${fmtN(allLogs.length)} รายการล่าสุด${totalLogs > allLogs.length ? ` จากทั้งหมด ${fmtN(totalLogs)}` : ''}</small></div>
+    // ช่องค้นหาสร้างครั้งเดียวแล้วคงไว้ — ถ้าสร้างใหม่ทุกครั้งที่พิมพ์ คีย์บอร์ดบนจอ (TV / Android) จะปิดเองหลังพิมพ์ 1 ตัว
+    if (!document.getElementById('hist-q')) {
+        el.innerHTML = `
+    <div class="ptitle"><h1>ประวัติ</h1><small id="hist-sub"></small></div>
     <div class="hist-layout">
         <div class="filters">
-            <label class="search">🔍<input id="hist-q" type="search" placeholder="ลูกค้า รุ่น เซลล์ หมายเหตุ" value="${esc(st.q)}" autocomplete="off" list="hist-cust-list"></label>
-            <datalist id="hist-cust-list">${customers.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
+            <label class="search">🔍<input id="hist-q" type="search" placeholder="ลูกค้า รุ่น เซลล์ หมายเหตุ" autocomplete="off" list="hist-cust-list" enterkeyhint="search"></label>
+            <datalist id="hist-cust-list"></datalist>
+            <div id="hist-ctrl" style="display:flex;flex-direction:column;gap:10px"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+            <div id="cust-card"></div>
+            <div id="hist-results" style="display:flex;flex-direction:column;gap:10px;min-width:0"></div>
+        </div>
+    </div>`;
+        const q = document.getElementById('hist-q');
+        q.value = st.q;
+        q.addEventListener('input', e => { st.q = e.target.value; st.limit = 40; renderHist(); });
+    }
+    const qEl = document.getElementById('hist-q');
+    if (qEl.value !== st.q) qEl.value = st.q;
+    document.getElementById('hist-sub').textContent = `${fmtN(allLogs.length)} รายการล่าสุด${totalLogs > allLogs.length ? ` จากทั้งหมด ${fmtN(totalLogs)}` : ''}`;
+    const dl = customers.map(c => `<option value="${esc(c)}">`).join('');
+    const dlEl = document.getElementById('hist-cust-list');
+    if (dlEl.innerHTML !== dl) dlEl.innerHTML = dl;
+    document.getElementById('hist-ctrl').innerHTML = `
             <div class="chips">${KIND_FILTERS.map(([k, t, c]) => `<button class="chip ${st.kind === k ? 'on' : ''}" onclick="histState.kind='${k}';histState.limit=40;renderHist()">${c ? `<span class="sw" style="background:${c}"></span>` : ''}${t} <span class="n">${base.filter(l => kindMatch(l, k)).length}</span></button>`).join('')}</div>
             <div class="frow">
                 <select class="sel" id="hist-period" aria-label="ช่วงเวลา">
@@ -508,17 +534,11 @@ function renderHist() {
                 </select>
                 ${st.period === 'date' ? `<input class="sel" type="date" id="hist-date" value="${esc(st.date)}">` : ''}
                 <select class="sel" id="hist-seller" aria-label="เซลล์"><option value="all">ทุกเซลล์</option>${sellers.map(s => `<option value="${esc(s)}" ${st.seller === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
-            </div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
-            <div id="cust-card"></div>
+            </div>`;
+    document.getElementById('hist-results').innerHTML = `
             <div class="result"><span>พบ ${fmtN(list.length)} รายการ · รวม ${fmtN(total)} ก้อน</span>${filtered ? '<button onclick="clearHist()">ล้างตัวกรอง</button>' : ''}</div>
             ${groups.length ? groups.map(g => `<div class="day"><span>${g.d ? dayLabel(g.d) : 'ไม่ทราบวันที่'}</span><span>${g.rows.length} รายการ</span></div><div class="hlist">${g.rows.map(histRowHtml).join('')}</div>`).join('') : '<div class="card empty">ไม่พบรายการที่ตรงกับตัวกรอง</div>'}
-            ${list.length > st.limit ? `<button class="btn-more" onclick="histState.limit+=40;renderHist()">ดูเพิ่ม (เหลืออีก ${fmtN(list.length - st.limit)} รายการ)</button>` : ''}
-        </div>
-    </div>`;
-    const q = document.getElementById('hist-q');
-    q.oninput = e => { st.q = e.target.value; st.limit = 40; const pos = e.target.selectionStart; renderHist(); const n = document.getElementById('hist-q'); n.focus(); n.setSelectionRange(pos, pos); };
+            ${list.length > st.limit ? `<button class="btn-more" onclick="histState.limit+=40;renderHist()">ดูเพิ่ม (เหลืออีก ${fmtN(list.length - st.limit)} รายการ)</button>` : ''}`;
     document.getElementById('hist-period').onchange = e => { st.period = e.target.value; st.limit = 40; renderHist(); };
     const dt = document.getElementById('hist-date'); if (dt) dt.onchange = e => { st.date = e.target.value; renderHist(); };
     document.getElementById('hist-seller').onchange = e => { st.seller = e.target.value; st.limit = 40; renderHist(); };
