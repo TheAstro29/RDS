@@ -1,12 +1,9 @@
 <!doctype html>
 <html lang="th">
-
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>RDS by C2TECH v2.1.1</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>RDS by C2TECH v2.3.0</title>
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#0e4a38" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -15,315 +12,76 @@
     <meta name="apple-mobile-web-app-title" content="RDS" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="assets/icon-16.png" />
-
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.5/dist/sweetalert2.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
     <div id="loading">
         <div class="loading-content">
-            <div class="logo-badge">
-                <span class="logo-badge-text">RDS</span>
-            </div>
-            <p class="sub-text">Roller Diamond Stock</p>
-            <p class="brand-tag">by C2TECH</p>
-            <div class="loading-status">
-                <span class="status-text">System Loading</span>
-                <div class="dot-flashing"></div>
-            </div>
+            <div class="logo big">RDS</div>
+            <b>Roller Diamond Stock</b>
+            <p>by C2TECH · กำลังโหลดข้อมูล...</p>
         </div>
     </div>
 
-    <header>
-        <div class="header-content">
-            <div class="brand-block">
-                <div class="logo-badge logo-badge-sm">
-                    <span class="logo-badge-text">RDS</span>
-                </div>
-                <div class="brand-text">
-                    <b class="brand-title">RDS</b>
-                    <small class="brand-sub">by C2TECH <span class="ver-chip">v2.1.1</span></small>
-                </div>
-            </div>
-            <div class="header-actions">
-                <button id="admin-btn" onclick="toggleAdmin()" class="icon-btn" aria-label="เข้าสู่ระบบ Admin">
-                    <svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5Zm3 8H9V6a3 3 0 0 1 6 0Z"/></svg>
-                </button>
-                <button onclick="fetchData()" class="refresh-btn" id="main-refresh" aria-label="รีเฟรชข้อมูล">
-                    <svg viewBox="0 0 24 24">
-                        <path
-                            d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
-                    </svg>
-                </button>
-            </div>
-        </div>
+    <header class="top">
+        <div class="logo">RDS</div>
+        <div class="t"><b>RDS <span class="ver">v2.3.0</span></b><small>Roller Diamond Stock · by C2TECH</small></div>
+        <span class="admin-chip" id="admin-chip" hidden>Admin</span>
+        <button class="ibtn hdr-gear" id="hdr-manage" onclick="showPage('manage')" aria-label="ตั้งค่าระบบ" hidden>⚙️</button>
+        <button class="ibtn" id="admin-btn" onclick="toggleAdmin()" aria-label="เข้าสู่ระบบ Admin"></button>
+        <button class="ibtn" id="main-refresh" onclick="fetchData()" aria-label="รีเฟรชข้อมูล">
+            <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" /></svg>
+        </button>
     </header>
 
-    <div class="app-shell">
-        <aside class="sidebar" id="sidebar">
-            <nav class="sidebar-nav">
-                <button class="side-item page-nav active" data-page="dash-page" onclick="showPage('dash-page', this)">
-                    <span class="side-icon">📊</span><span>สรุปภาพรวม</span>
-                </button>
-                <button class="side-item page-nav" data-page="stock-page" onclick="showPage('stock-page', this)">
-                    <span class="side-icon">📦</span><span>คลังสินค้า</span>
-                </button>
-                <button class="side-item page-nav" data-page="log-page" onclick="showPage('log-page', this)">
-                    <span class="side-icon">🕒</span><span>ประวัติทั้งหมด</span>
-                </button>
-                <button class="side-item page-nav" data-page="stats-page" onclick="showPage('stats-page', this)">
-                    <span class="side-icon">📈</span><span>รายงานยอดขาย</span>
-                </button>
-                <button class="side-item" onclick="openClaimModal()">
-                    <span class="side-icon">🛡️</span><span>เคลมสินค้า</span>
-                </button>
-                <button class="side-item page-nav admin-only" data-page="manage-page" onclick="showPage('manage-page', this)">
-                    <span class="side-icon">⚙️</span><span>ตั้งค่าระบบ</span>
-                </button>
-            </nav>
-            <div class="sidebar-foot">
-                <p>RDS by C2TECH</p>
-                <p class="sidebar-foot-sub">Roller Diamond Stock</p>
-            </div>
+    <div class="shell">
+        <aside class="side">
+            <button class="newbtn" onclick="openSheet()">＋ บันทึกรายการ</button>
+            <button class="nitem" data-nav="exec" onclick="showPage('exec')">📈 รายงานผู้บริหาร</button>
+            <button class="nitem" data-nav="stock" onclick="showPage('stock')">📦 คลังสินค้า</button>
+            <button class="nitem" data-nav="hist" onclick="showPage('hist')">🕒 ประวัติ</button>
+            <button class="nitem on" data-nav="dash" onclick="showPage('dash')">📊 ภาพรวม</button>
+            <button class="nitem" data-nav="manage" id="side-manage" onclick="showPage('manage')" hidden>⚙️ ตั้งค่าระบบ</button>
+            <div class="foot">RDS by C2TECH · v2.3.0</div>
         </aside>
 
-        <main class="main-area">
-            <div class="container">
-                <div id="dash-page" class="page active">
-                    <div class="stat-grid">
-                        <div class="stat-item">
-                            <small style="color: var(--text-sub); font-weight: 700">ยอดขายสะสม</small>
-                            <div id="d-sell" style="font-size: 1.4rem; font-weight: 800">0</div>
-                            <small>ก้อน</small>
-                        </div>
-                        <div class="stat-item" style="border-left-color: var(--orange)">
-                            <small style="color: var(--text-sub); font-weight: 700">ยอดทดลองสะสม</small>
-                            <div id="d-test" style="font-size: 1.4rem; font-weight: 800">0</div>
-                            <small>ก้อน</small>
-                        </div>
-                        <div class="stat-item" style="border-left-color: #f43f5e;">
-                            <small style="color: var(--text-sub); font-weight: 700">ยอดเคลมสะสม</small>
-                            <div id="total-claim-dash" style="font-size: 1.4rem; font-weight: 800">0</div>
-                            <small>ก้อน</small>
-                        </div>
-                    </div>
-
-                    <div class="dash-grid">
-                        <div class="card" style="border-left: 5px solid var(--accent-green)">
-                            <div class="card-title">📅 ความเคลื่อนไหววันนี้</div>
-                            <div id="d-today-activity" style="font-size: 0.8rem; max-height: 250px; overflow-y: auto">
-                                <center style="color: #ccc; padding: 10px">
-                                    กำลังโหลดข้อมูล...
-                                </center>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <div class="card-title">📦 สต็อกคงเหลือปัจจุบัน</div>
-                            <div style="font-size: 0.85rem; overflow-x: auto">
-                                <table style="width: 100%; border-collapse: collapse">
-                                    <thead>
-                                        <tr style="text-align: left; color: var(--text-sub)">
-                                            <th>รุ่น #เบอร์</th>
-                                            <th style="text-align: center">New</th>
-                                            <th style="text-align: center">Used</th>
-                                            <th style="text-align: right">รวม</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="report-stock-body"></tbody>
-                                </table>
-                            </div>
-                            <button class="btn-line" onclick="copyReport()">
-                                📋 คัดลอกรายงาน สำหรับส่ง LINE
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="card" style="margin-top: 15px; border-top: 4px solid var(--purple)">
-                        <div style="
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  margin-bottom: 10px;
-                ">
-                            <h3 style="margin: 0; color: var(--purple)">🛡️ รายการรอเคลมสินค้า</h3>
-                        </div>
-                        <div id="claim-list-dashboard"></div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title" style="color: var(--orange)">
-                            ⏳ รายการทดลอง/รอวางบิล <span id="trial-count-header"></span>
-                        </div>
-                        <div style="overflow-x: auto">
-                            <table id="d-trial-table" style="width: 100%; border-collapse: collapse">
-                                <thead>
-                                    <tr style="
-                            text-align: left;
-                            color: var(--text-sub);
-                            border-bottom: 1px solid #eee;
-                          ">
-                                        <th style="padding: 8px 4px">ลูกค้า</th>
-                                        <th style="padding: 8px 4px">หิน / จำนวน</th>
-                                        <th style="padding: 8px 4px; text-align: right">ระยะเวลา</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="d-trial-list">
-                                    <!-- ข้อมูลจะถูก Render จาก JavaScript -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="stock-page" class="page">
-                    <div class="action-bar">
-                        <button class="btn-action" onclick="openModal('IN')" style="
-                  background: #f0fdf4;
-                  border: 2.2px solid var(--accent-green);
-                  font-weight: 800;
-                  color: var(--primary-green);
-                ">
-                            📥 รับเข้า / คืน</button><button class="btn-action" onclick="openModal('OUT')" style="
-                  background: #fef2f2;
-                  border: 2.2px solid var(--danger-red);
-                  font-weight: 800;
-                  color: #991b1b;
-                ">
-                            📤 ขาย / ลอง
-                        </button>
-                    </div>
-                    <div id="stock-list"></div>
-                </div>
-
-                <div id="log-page" class="page">
-                    <div class="card log-search-card">
-                        <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 8px">
-                            <input type="date" id="search-date" class="swal-input-custom" onchange="filterLogs()" /><input
-                                type="text" id="search-text" class="swal-input-custom" placeholder="🔍 ค้นหาลูกค้าหรือรุ่น..."
-                                onkeyup="filterLogs()" />
-                        </div>
-                    </div>
-                    <div id="log-list"></div>
-                </div>
-
-                <div id="stats-page" class="page">
-                    <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr);">
-                        <div class="stat-item">
-                            <small style="color: var(--text-sub); font-weight: 700">ยอดขายเดือนนี้</small>
-                            <div id="stat-month-now" style="font-size: 1.4rem; font-weight: 800">0</div>
-                            <small>ก้อน</small>
-                        </div>
-                        <div class="stat-item" style="border-left-color: var(--text-sub)">
-                            <small style="color: var(--text-sub); font-weight: 700">ยอดขายเดือนก่อน</small>
-                            <div id="stat-month-prev" style="font-size: 1.4rem; font-weight: 800">0</div>
-                            <small>ก้อน</small>
-                        </div>
-                        <div class="stat-item" id="stat-month-diff-card">
-                            <small style="color: var(--text-sub); font-weight: 700">เทียบเดือนก่อน</small>
-                            <div id="stat-month-diff" style="font-size: 1.4rem; font-weight: 800">0%</div>
-                            <small>&nbsp;</small>
-                        </div>
-                    </div>
-
-                    <div class="dash-grid">
-                        <div class="card" style="border-left: 5px solid var(--accent-green)">
-                            <div class="card-title">📈 ยอดขาย 14 วันล่าสุด</div>
-                            <div style="position: relative; height: 220px;">
-                                <canvas id="chart-trend"></canvas>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <div class="card-title">🏆 5 อันดับหินขายดี</div>
-                            <div style="position: relative; height: 220px;">
-                                <canvas id="chart-models"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <div class="card-title">👤 สัดส่วนยอดขายตามทีมงาน</div>
-                        <div style="position: relative; height: 260px; max-width: 320px; margin: 0 auto;">
-                            <canvas id="chart-team"></canvas>
-                        </div>
-                    </div>
-                    <p style="text-align:center; font-size:0.7rem; color:var(--text-sub); margin-top: -4px;">
-                        * คำนวณจากประวัติที่โหลดล่าสุด (ปัจจุบันจำกัดที่ 100 รายการล่าสุด)
-                    </p>
-                </div>
-
-                <div id="manage-page" class="page">
-                    <div class="card">
-                        <div class="card-title">
-                            ⚙️ ตั้งค่าระบบ
-                            <span id="admin-status" style="
-                        margin-left: auto;
-                        font-size: 0.6rem;
-                        background: #fee2e2;
-                        color: #ef4444;
-                        padding: 2px 8px;
-                        border-radius: 10px;
-                      ">User Mode</span>
-                        </div>
-                        <div class="manage-grid">
-                            <div class="manage-block">
-                                <div class="manage-block-head">
-                                    <span>📦 รุ่นหิน</span>
-                                    <button onclick="addModel()" class="admin-only manage-add-btn">
-                                        + เพิ่ม
-                                    </button>
-                                </div>
-                                <div id="m-models-list"></div>
-                            </div>
-                            <div class="manage-block">
-                                <div class="manage-block-head">
-                                    <span>👤 ทีมงาน</span>
-                                    <button onclick="addData('SALE')" class="admin-only manage-add-btn">
-                                        + เพิ่ม
-                                    </button>
-                                </div>
-                                <div id="m-sales-list"></div>
-                            </div>
-                            <div class="manage-block">
-                                <div class="manage-block-head">
-                                    <span>🏢 รายชื่อลูกค้า (บันทึกอัตโนมัติ)</span>
-                                </div>
-                                <div id="m-custs-list"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <main>
+            <section class="page active" id="page-dash"></section>
+            <section class="page" id="page-stock"></section>
+            <section class="page" id="page-hist"></section>
+            <section class="page" id="page-rec"></section>
+            <section class="page" id="page-exec"></section>
+            <section class="page" id="page-manage"></section>
         </main>
     </div>
 
-    <nav class="bottom-nav">
-        <div class="nav-content">
-            <button class="nav-item page-nav active" data-page="dash-page" onclick="showPage('dash-page', this)">
-                📊<span>สรุป</span>
-            </button>
-            <button class="nav-item page-nav" data-page="stock-page" onclick="showPage('stock-page', this)">
-                📦<span>คลัง</span>
-            </button>
-            <button class="nav-item page-nav" data-page="log-page" onclick="showPage('log-page', this)">
-                🕒<span>ประวัติ</span></button><button class="nav-item" onclick="openClaimModal()">
-                <span class="nav-icon">🛡️</span>
-                <span>เคลม</span>
-            </button>
-            <button class="nav-item page-nav" data-page="stats-page" onclick="showPage('stats-page', this)">
-                📈<span>รายงาน</span>
-            </button>
-            <button class="nav-item page-nav admin-only" id="nav-manage" data-page="manage-page" onclick="showPage('manage-page', this)">
-                ⚙️<span>ตั้งค่า</span>
-            </button>
-        </div>
+    <nav class="bnav" aria-label="เมนูหลัก">
+        <button data-nav="exec" onclick="showPage('exec')"><span class="i">📈</span>รายงาน</button>
+        <button data-nav="stock" onclick="showPage('stock')"><span class="i">📦</span>คลัง</button>
+        <div><div class="fab" role="button" tabindex="0" aria-label="บันทึกรายการ" onclick="openSheet()">＋</div></div>
+        <button data-nav="hist" onclick="showPage('hist')"><span class="i">🕒</span>ประวัติ</button>
+        <button class="on" data-nav="dash" onclick="showPage('dash')"><span class="i">📊</span>ภาพรวม</button>
     </nav>
+    <div id="cartbar-slot"></div>
+
+    <div class="sheet-back" id="sheet-back" hidden onclick="closeSheet()"></div>
+    <div class="sheet" id="sheet" role="dialog" aria-label="บันทึกรายการ">
+        <div class="grab"></div>
+        <h3>บันทึกรายการ</h3>
+        <div class="act-grid">
+            <button class="act" onclick="startRec('sale')"><div class="i a-sale">💰</div><b>ขายสินค้า</b><small>ตัดสต็อกทันที</small></button>
+            <button class="act" onclick="startRec('trial')"><div class="i a-trial">🧪</div><b>ส่งทดลอง</b><small>ปิดเป็นขาย/รับคืนทีหลัง</small></button>
+            <button class="act" onclick="startRec('in')"><div class="i a-in">📥</div><b>รับเข้า</b><small>หินใหม่ หรือรับคืน Used</small></button>
+            <button class="act" onclick="startRec('claim')"><div class="i a-claim">🛡️</div><b>เคลมสินค้า</b><small>เปลี่ยนหินให้ลูกค้า</small></button>
+        </div>
+    </div>
+    <div id="modal-slot"></div>
+
     <script src="script.js"></script>
 </body>
-
 </html>
