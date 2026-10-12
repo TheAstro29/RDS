@@ -42,30 +42,30 @@
     <div class="shell">
         <aside class="side">
             <button class="newbtn" onclick="openSheet()">＋ บันทึกรายการ</button>
-            <button class="nitem" data-nav="exec" onclick="showPage('exec')">📈 รายงานผู้บริหาร</button>
+            <button class="nitem on" data-nav="exec" onclick="showPage('exec')">📈 Dashboard</button>
             <button class="nitem" data-nav="stock" onclick="showPage('stock')">📦 คลังสินค้า</button>
             <button class="nitem" data-nav="hist" onclick="showPage('hist')">🕒 ประวัติ</button>
-            <button class="nitem on" data-nav="dash" onclick="showPage('dash')">📊 ภาพรวม</button>
+            <button class="nitem" data-nav="dash" onclick="showPage('dash')">📊 ภาพรวม</button>
             <button class="nitem" data-nav="manage" id="side-manage" onclick="showPage('manage')" hidden>⚙️ ตั้งค่าระบบ</button>
             <div class="foot">RDS by C2TECH · v2.3.0</div>
         </aside>
 
         <main>
-            <section class="page active" id="page-dash"></section>
+            <section class="page" id="page-dash"></section>
             <section class="page" id="page-stock"></section>
             <section class="page" id="page-hist"></section>
             <section class="page" id="page-rec"></section>
-            <section class="page" id="page-exec"></section>
+            <section class="page active" id="page-exec"></section>
             <section class="page" id="page-manage"></section>
         </main>
     </div>
 
     <nav class="bnav" aria-label="เมนูหลัก">
-        <button data-nav="exec" onclick="showPage('exec')"><span class="i">📈</span>รายงาน</button>
+        <button class="on" data-nav="exec" onclick="showPage('exec')"><span class="i">📈</span>Dashboard</button>
         <button data-nav="stock" onclick="showPage('stock')"><span class="i">📦</span>คลัง</button>
         <div><div class="fab" role="button" tabindex="0" aria-label="บันทึกรายการ" onclick="openSheet()">＋</div></div>
         <button data-nav="hist" onclick="showPage('hist')"><span class="i">🕒</span>ประวัติ</button>
-        <button class="on" data-nav="dash" onclick="showPage('dash')"><span class="i">📊</span>ภาพรวม</button>
+        <button data-nav="dash" onclick="showPage('dash')"><span class="i">📊</span>ภาพรวม</button>
     </nav>
     <div id="cartbar-slot"></div>
 

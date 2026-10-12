@@ -7,7 +7,7 @@ const TRIAL_WARN_DAYS = 7, TRIAL_ALERT_DAYS = 14;
 
 let inventory = [], sales = [], customers = [], allLogs = [], summary = null, totalLogs = 0;
 let isAdmin = false, adminToken = '';
-let currentPage = 'dash';
+let currentPage = 'exec';
 
 // ============================================================
 // ตัวช่วยทั่วไป
@@ -197,7 +197,7 @@ function setAdminUI(on) {
     if (!on) {
         adminToken = '';
         try { localStorage.removeItem(ADMIN_SESSION_KEY); } catch (e) { }
-        if (currentPage === 'manage') showPage('dash');
+        if (currentPage === 'manage') showPage('exec');
     }
 }
 async function toggleAdmin() {
@@ -262,7 +262,7 @@ async function syncAction(action, payload, successText) {
 // นำทาง
 // ============================================================
 function showPage(name) {
-    if (name === 'manage' && !isAdmin) name = 'dash';
+    if (name === 'manage' && !isAdmin) name = 'exec';
     currentPage = name;
     document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + name));
     document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('on', b.dataset.nav === name));
@@ -674,7 +674,7 @@ function renderRec() {
     <div class="rec-head"><button class="back" onclick="showPage('dash')" aria-label="กลับ">‹</button><div><small class="muted">บันทึกรายการ</small><h1 style="margin:0;font-size:20px;color:var(--primary)">${REC_TYPES[rec.type]}</h1></div></div>
     <div class="typeseg">${Object.keys(REC_TYPES).map(t => `<button class="${t === rec.type ? 'on' : ''}" onclick="rec.type='${t}';if(rec.type==='claim')rec.cond='New';renderRec();renderCartBar()">${KIND_ICON[t]} ${REC_SHORT[t]}</button>`).join('')}</div>
     <div class="fields">
-        <div class="field"><label for="rec-cust">${rec.type === 'in' ? 'รับจาก (Supplier / ลูกค้าที่คืน)' : 'ลูกค้า / โรงสี'}</label><input id="rec-cust" value="${esc(rec.cust)}" placeholder="พิมพ์ชื่อ..." autocomplete="off" oninput="rec.cust=this.value" onkeyup="handleCustomerInput(this)"><datalist id="cust-list">${customers.map(c => `<option value="${esc(c)}">`).join('')}</datalist></div>
+        <div class="field"><label for="rec-cust">${rec.type === 'in' ? 'รับจาก (Supplier / ลูกค้าที่คืน)' : 'ลูกค้า / โรงสี'}</label><input id="rec-cust" value="${esc(rec.cust)}" placeholder="พิมพ์ชื่อ..." autocomplete="off" oninput="handleCustomerInput(this, event)"><datalist id="cust-list">${customers.map(c => `<option value="${esc(c)}">`).join('')}</datalist></div>
         <div class="field"><label for="rec-sale">เซลล์ / ผู้ทำรายการ</label><select id="rec-sale" onchange="rec.sale=this.value">${sales.map(s => `<option value="${esc(s)}" ${rec.sale === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></div>
     </div>
     ${rec.type === 'trial' ? '<div class="notice">ส่งทดลองหลายรุ่นในครั้งเดียวได้ · ตอนปิดงานจะปิดทั้งรายการ (ลูกค้าซื้อทั้งหมด หรือคืนทั้งหมด)</div>' : ''}
@@ -698,22 +698,25 @@ function renderCartBar() {
     slot.innerHTML = `<div class="cartbar mobile-only"><div class="cnt">🛒 ${n} รายการ<b>${fmtN(cartTotal())} ก้อน</b></div>
         <button ${n ? '' : 'disabled'} onclick="rec.cartOpen=!rec.cartOpen;renderRec();renderCartBar();if(rec.cartOpen){const c=document.getElementById('cart-mobile');if(c)c.scrollIntoView({behavior:'smooth'})}">${rec.cartOpen ? 'ซ่อนตะกร้า' : 'ดูตะกร้า / ยืนยัน'}</button></div>`;
 }
-/** ช่องชื่อลูกค้า: คอมใช้รายการแนะนำ (datalist) ส่วนมือถือเติมชื่อให้อัตโนมัติขณะพิมพ์ (พฤติกรรมเดิม) */
-function handleCustomerInput(input) {
-    if (window.innerWidth <= 768) {
-        input.removeAttribute('list');
-        setTimeout(() => {
-            const val = input.value.trim();
-            if (val.length < 2) return;
-            const match = customers.find(c => String(c).toLowerCase().startsWith(val.toLowerCase()));
-            if (match && match.length > val.length) {
-                const start = input.selectionStart;
-                input.value = match; rec.cust = match;
-                input.setSelectionRange(start, match.length);
-            }
-        }, 10);
-    } else {
-        input.setAttribute('list', 'cust-list');
+/** ช่องชื่อลูกค้า: คอมใช้รายการแนะนำ (datalist) ส่วนมือถือเติมชื่อให้อัตโนมัติขณะพิมพ์
+ * เติมเฉพาะตอน "พิมพ์เพิ่ม" ที่ท้ายข้อความเท่านั้น — ตอนลบ (Backspace) / แก้กลางคำ / ระหว่างผสมคำ จะไม่เติม
+ * (เดิมเติมทุกครั้งที่ปล่อยปุ่ม รวมถึงตอนลบ ทำให้ชื่อเด้งกลับมาลบไม่ออก) */
+function handleCustomerInput(input, e) {
+    rec.cust = input.value;
+    if (window.innerWidth > 768) { input.setAttribute('list', 'cust-list'); return; }
+    input.removeAttribute('list');
+    const prevLen = Number(input.dataset.prevLen || 0);
+    const val = input.value;
+    input.dataset.prevLen = val.length;
+    if (e && (e.isComposing || (e.inputType && !e.inputType.startsWith('insert')))) return;
+    if (val.length <= prevLen) return;                       // ลบ/แทนที่ ไม่ใช่พิมพ์เพิ่ม
+    if (input.selectionStart !== val.length) return;          // พิมพ์กลางคำ
+    const typed = val.trim();
+    if (typed.length < 2) return;
+    const match = customers.find(c => String(c).toLowerCase().startsWith(typed.toLowerCase()));
+    if (match && match.length > typed.length) {
+        input.value = match; rec.cust = match;
+        input.setSelectionRange(val.length, match.length);    // ส่วนที่เติมถูกเลือกไว้: พิมพ์ทับหรือกดลบได้เลย
     }
 }
 async function submitRec() {
@@ -846,13 +849,13 @@ function copyWeekly() {
 }
 
 // ============================================================
-// รายงานผู้บริหาร
+// Dashboard (เดิมชื่อ รายงานผู้บริหาร) — หน้าแรกของแอป
 // ============================================================
 let _chartTrend = null, _chartModels = null;
 const CHART_COLORS = ['#12a37a', '#e08a3c', '#7c5cd4', '#d94f4f', '#0e4a38', '#4fd8a6'];
 function renderExec() {
     const el = document.getElementById('page-exec');
-    if (!summary) { el.innerHTML = '<div class="ptitle"><h1>รายงานผู้บริหาร</h1></div><div class="card empty">กำลังโหลดข้อมูลสรุป... ถ้าไม่ขึ้น ให้ตรวจว่า Deploy Google Script เวอร์ชันล่าสุดแล้ว</div>'; return; }
+    if (!summary) { el.innerHTML = '<div class="ptitle"><h1>Dashboard</h1></div><div class="card empty">กำลังโหลดข้อมูลสรุป... ถ้าไม่ขึ้น ให้ตรวจว่า Deploy Google Script เวอร์ชันล่าสุดแล้ว</div>'; return; }
     const s = summary, m = s.month, now = new Date();
     const pct = m.lastMonth > 0 ? Math.round((m.thisMonth - m.lastMonth) / m.lastMonth * 100) : null;
     const trials = s.open.filter(o => o.status === 'PENDING').slice().sort((a, b) => (b.days || 0) - (a.days || 0));
@@ -863,7 +866,7 @@ function renderExec() {
     const low = groups.filter(g => g.low);
     const totalSaleMonth = s.bySaleMonth.reduce((a, x) => a + x[1], 0) || 1;
     el.innerHTML = `
-    <div class="ptitle"><div><small>ข้อมูล ณ ${thaiShort(new Date(s.generatedAt))} ${thaiTime(new Date(s.generatedAt))} · คำนวณจากทุกรายการ</small><h1>สรุปภาพรวม · ${TH_MONTHS_FULL[now.getMonth()]} ${now.getFullYear() + 543}</h1></div></div>
+    <div class="ptitle"><div><small>ข้อมูล ณ ${thaiShort(new Date(s.generatedAt))} ${thaiTime(new Date(s.generatedAt))} · คำนวณจากทุกรายการ</small><h1>Dashboard · ${TH_MONTHS_FULL[now.getMonth()]} ${now.getFullYear() + 543}</h1></div></div>
     <div class="kpis">
         <div class="kpi" style="--c:var(--accent)"><small>ขายเดือนนี้</small><b>${fmtN(m.thisMonth)} <span class="u">ก้อน</span></b><em class="${pct === null ? 'muted' : (pct >= 0 ? 'up' : 'down')}">${pct === null ? 'เดือนก่อน ' + fmtN(m.lastMonth) : (pct >= 0 ? '▲ ' : '▼ ') + Math.abs(pct) + '% จากเดือนก่อน (' + fmtN(m.lastMonth) + ')'}</em></div>
         <div class="kpi" style="--c:var(--primary)"><small>ขายปีนี้</small><b>${fmtN(m.thisYear)} <span class="u">ก้อน</span></b><em class="muted">ม.ค.–${TH_MONTHS[now.getMonth()]}</em></div>
