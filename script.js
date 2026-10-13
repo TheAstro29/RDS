@@ -1,5 +1,6 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzJ8HJ1FlVckHAwJxkGJbySBbDfrtcEoxYR9tbxSBqhYv3smR4U1qqQC4mwnA57EF7Jvw/exec";
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.4.0';
+const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับ Google Script
 const ADMIN_SESSION_KEY = 'rds_admin_session';
 const CACHE_KEY = 'rds_cache';
 const DEFAULT_MIN_STOCK = 10;
@@ -299,7 +300,7 @@ function trialCardsHtml(trials, withActions) {
         const sent = logDate(t);
         return `<div class="trial ${d > TRIAL_ALERT_DAYS ? 'over' : ''}">
             <div class="days ${daysClass(d)}"><b>${d ?? '?'}</b><small>วัน</small></div>
-            <div class="who"><b>${esc(t.cust)}</b>
+            <div class="who"><b>${esc(t.cust)}</b>${isBackdated(t) || isNoStock(t) ? `<div class="tags">${bdPillsHtml(t)}</div>` : ''}
                 <div class="items">${esc(itemsText(t))}</div>
                 <small>เซลล์ ${esc(t.sale || '-')} · ส่งเมื่อ ${thaiShort(sent)}${t.remark ? ' · 📝 ' + esc(t.remark) : ''}</small>
                 ${withActions ? `<div class="acts"><button class="mini g" onclick="confirmTestToSale('${esc(t.id)}')">💰 ลูกค้าซื้อแล้ว</button><button class="mini s" onclick="returnTestItem('${esc(t.id)}')">🔄 รับคืน</button></div>` : ''}
@@ -466,8 +467,10 @@ function closeModal() { document.getElementById('modal-slot').innerHTML = ''; do
 // ประวัติ — ตัวกรองตามประเภท / ช่วงเวลา / เซลล์ / คำค้น
 // ============================================================
 const histState = { kind: 'all', period: 'all', date: '', seller: 'all', q: '', limit: 40 };
+const isBackdated = l => !!(l && l.recordedAt);
+const isNoStock = l => !!(l && l.stockMode === 'NOSTOCK');
 const KIND_FILTERS = [['all', 'ทั้งหมด', ''], ['sale', 'ขาย', 'var(--red)'], ['in', 'รับเข้า', 'var(--accent)'], ['trial', 'ทดลอง', 'var(--orange)'],
-    ['claim', 'เคลม', 'var(--purple)'], ['open', 'ค้างดำเนินการ', 'var(--rose)'], ['cancel', 'ยกเลิก', '#9aa39f']];
+    ['claim', 'เคลม', 'var(--purple)'], ['open', 'ค้างดำเนินการ', 'var(--rose)'], ['cancel', 'ยกเลิก', '#9aa39f'], ['bd', '📅 ย้อนหลัง', '']];
 
 function histBaseFilter(l) {
     const st = histState, d = logDate(l), now = new Date();
@@ -482,7 +485,15 @@ function histBaseFilter(l) {
     }
     return true;
 }
-function kindMatch(l, k) { return k === 'all' ? true : k === 'open' ? isOpen(l) : kindOf(l) === k; }
+function kindMatch(l, k) { return k === 'all' ? true : k === 'open' ? isOpen(l) : k === 'bd' ? isBackdated(l) : kindOf(l) === k; }
+function bdPillsHtml(l) {
+    return (isBackdated(l) ? '<span class="pill p-bd">📅 ย้อนหลัง</span>' : '') + (isNoStock(l) ? `<span class="pill p-nost">${l.direction === 'IN' || String(l.typeLabel).startsWith('รับ') ? 'ไม่เพิ่มสต็อก' : 'ไม่ตัดสต็อก'}</span>` : '');
+}
+function bdNoteHtml(l) {
+    if (!isBackdated(l)) return '';
+    const rd = new Date(l.recordedAt);
+    return `<div class="note bd-note">📅 บันทึกเมื่อ ${isNaN(rd) ? '-' : thaiShort(rd) + ' ' + thaiTime(rd)}${l.backdateReason ? ' · เหตุผล: ' + esc(l.backdateReason) : ''}</div>`;
+}
 
 function renderHist() {
     const el = document.getElementById('page-hist');
@@ -558,9 +569,10 @@ function histRowHtml(l) {
     }
     return `<div class="hrow ${k === 'cancel' ? 'cancelled' : ''}">
         <div class="avatar a-${k}">${KIND_ICON[k]}</div>
-        <div><div class="head">${statusPill(l)}<b>${esc(l.cust)}</b></div>
+        <div><div class="head">${statusPill(l)}${bdPillsHtml(l)}<b>${esc(l.cust)}</b></div>
             <div class="items">${esc(itemsText(l))}</div>
             <div class="meta">${d ? thaiTime(d) : esc(l.date)} · เซลล์ ${esc(l.sale || '-')} · <span class="mono">${id}</span></div>
+            ${bdNoteHtml(l)}
             ${l.remark ? `<div class="note">📝 ${esc(l.remark)}</div>` : ''}
             ${l.status === 'CANCELLED' ? `<div class="note cancel">ยกเลิกแล้ว${l.cancelReason ? ' · ' + esc(l.cancelReason) : ''}</div>` : ''}
             ${acts.length ? `<div class="acts">${acts.join('')}</div>` : ''}
@@ -620,7 +632,61 @@ async function renderCustomerCard(text) {
 // ============================================================
 const REC_TYPES = { sale: 'ขายสินค้า', trial: 'ส่งทดลอง', in: 'รับเข้า', claim: 'เคลม' };
 const REC_SHORT = { sale: 'ขาย', trial: 'ทดลอง', in: 'รับเข้า', claim: 'เคลม' };
-const rec = { type: 'sale', cond: 'New', cart: {}, cust: '', sale: '', remark: '', cartOpen: false };
+const rec = { type: 'sale', cond: 'New', cart: {}, cust: '', sale: '', remark: '', cartOpen: false,
+    // บันทึกย้อนหลัง (v2.4): on = เลือก "ย้อนหลัง", noStock = ไม่ตัด/เพิ่มสต็อก (Admin เท่านั้น)
+    bd: { on: false, date: '', time: '', reason: '', noStock: false } };
+function bdIsoDate(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function bdActive() { return rec.bd.on; }
+function bdNoStock() { return rec.bd.on && rec.bd.noStock && isAdmin; }
+/** ตรวจข้อมูลย้อนหลังฝั่งหน้าเว็บ (Server ตรวจซ้ำอีกชั้น) → ข้อความผิดพลาด หรือ '' */
+function bdError() {
+    if (!rec.bd.on) return '';
+    if (!rec.bd.date) return 'กรุณาเลือกวันที่เกิดขึ้นจริง';
+    const [y, m, d] = rec.bd.date.split('-').map(Number);
+    const [hh, mm] = (rec.bd.time || '12:00').split(':').map(Number);
+    const when = new Date(y, m - 1, d, hh || 0, mm || 0);
+    if (isNaN(when)) return 'วันที่ไม่ถูกต้อง';
+    if (when > new Date()) return 'วันที่ย้อนหลังต้องไม่เกินเวลาปัจจุบัน';
+    if (daysSince(when) > BACKDATE_MAX_DAYS) return `บันทึกย้อนหลังได้ไม่เกิน ${BACKDATE_MAX_DAYS} วัน`;
+    if (!rec.bd.reason.trim()) return 'กรุณาระบุเหตุผลที่บันทึกย้อนหลัง';
+    if (rec.bd.noStock && !isAdmin) return 'การบันทึกแบบไม่ตัดสต็อกต้องเข้าสู่ระบบ Admin';
+    return '';
+}
+function bdLabel() {
+    if (!rec.bd.on || !rec.bd.date) return '';
+    const [y, m, d] = rec.bd.date.split('-').map(Number);
+    return `📅 ย้อนหลัง ${thaiShort(new Date(y, m - 1, d))}${rec.bd.time ? ' ' + rec.bd.time + ' น.' : ''}${bdNoStock() ? (rec.type === 'in' ? ' · ไม่เพิ่มสต็อก' : ' · ไม่ตัดสต็อก') : ''}`;
+}
+function setBd(patch, rerender) {
+    Object.assign(rec.bd, patch);
+    if (rec.bd.on && !rec.bd.date) { const d = new Date(); d.setDate(d.getDate() - 1); rec.bd.date = bdIsoDate(d); }
+    if (rerender) { const y = window.scrollY; renderRec(); renderCartBar(); window.scrollTo(0, y); }
+}
+function bdBlockHtml() {
+    const b = rec.bd, isIn = rec.type === 'in';
+    const maxD = bdIsoDate(new Date()), minDd = new Date(); minDd.setDate(minDd.getDate() - BACKDATE_MAX_DAYS);
+    const yesT = isIn ? 'เพิ่มเข้าคลัง (แนะนำ)' : 'ตัดสต็อก (แนะนำ)';
+    const yesD = isIn ? 'หินที่รับเข้าวันนั้นยังไม่ได้นับในระบบ → เพิ่มจำนวนคงเหลือตอนบันทึก'
+        : 'หินยังนับอยู่ในคลังตามระบบ → ตัดออกตอนบันทึกเหมือนปกติ' + (rec.type === 'sale' ? ' ยอดขาย/กราฟนับเข้าวันที่จริง' : '');
+    const noT = isIn ? 'ไม่เพิ่มสต็อก · บันทึกประวัติอย่างเดียว' : 'ไม่ตัดสต็อก · บันทึกประวัติอย่างเดียว';
+    const noD = 'ใช้เมื่อปรับยอดในคลังไปแล้ว → เก็บเป็นประวัติ' + (rec.type === 'sale' ? '/ยอดขาย' : '') + ' แต่จำนวนคงเหลือไม่เปลี่ยน';
+    const noStock = bdNoStock();
+    return `<div class="card bd-card">
+        <div class="bd-row"><b>วันที่ทำรายการ</b>
+            <div class="cond" role="group" aria-label="วันที่ทำรายการ"><button class="${b.on ? '' : 'on'}" onclick="setBd({on:false},true)">วันนี้</button><button class="${b.on ? 'on' : ''}" id="bd-on" onclick="setBd({on:true},true)">📅 ย้อนหลัง</button></div></div>
+        ${b.on ? `<div class="bd-body">
+            <div class="fields">
+                <div class="field"><label for="bd-date">วันที่เกิดขึ้นจริง *</label><input type="date" id="bd-date" value="${esc(b.date)}" max="${maxD}" min="${bdIsoDate(minDd)}" onchange="setBd({date:this.value},true)"></div>
+                <div class="field"><label for="bd-time">เวลา (ไม่บังคับ)</label><input type="time" id="bd-time" value="${esc(b.time)}" onchange="setBd({time:this.value},true)"></div>
+            </div>
+            <div class="field"><label for="bd-reason">เหตุผลที่บันทึกย้อนหลัง *</label><input id="bd-reason" value="${esc(b.reason)}" maxlength="300" placeholder="เช่น เซลล์ส่งของหน้างาน ลืมบันทึกในระบบ" oninput="rec.bd.reason=this.value" onchange="setBd({},true)"></div>
+            <div class="field"><label>${isIn ? 'การเพิ่มสต็อก' : 'การตัดสต็อก'} *</label></div>
+            <label class="bd-opt ${noStock ? '' : 'on'}"><input type="radio" name="bd-sm" ${noStock ? '' : 'checked'} onchange="setBd({noStock:false},true)"><span><b>${yesT}</b><small>${yesD}</small></span></label>
+            <label class="bd-opt ${noStock ? 'on' : ''} ${isAdmin ? '' : 'dis'}"><input type="radio" name="bd-sm" id="bd-nostock" ${noStock ? 'checked' : ''} ${isAdmin ? '' : 'disabled'} onchange="setBd({noStock:true},true)"><span><b>${noT}</b> <span class="pill p-claim">Admin</span><small>${isAdmin ? noD : noD + ' — ต้องเข้าสู่ระบบ Admin (รูปกุญแจ) ก่อน'}</small></span></label>
+            ${noStock ? `<div class="notice">⚠️ รายการนี้จะ<b>ไม่เปลี่ยนจำนวนคงเหลือ</b> ถ้าหินยังอยู่ในคลังจริง ยอดจะไม่ตรง — ใช้เฉพาะเมื่อปรับยอดไปแล้วเท่านั้น</div>` : ''}
+        </div>` : ''}
+    </div>`;
+}
 
 function startRec(type) {
     closeSheet();
@@ -631,6 +697,8 @@ function startRec(type) {
     showPage('rec');
 }
 function recIsOut() { return rec.type === 'sale' || rec.type === 'trial'; }
+/** จำกัดจำนวนตามสต็อกหรือไม่ — แบบไม่ตัดสต็อกไม่ต้องจำกัด (ยอดคลังปรับไปแล้ว) */
+function recCapped() { return recIsOut() && !bdNoStock(); }
 function cartEntries() { return Object.entries(rec.cart).filter(([, v]) => v > 0); }
 function cartTotal() { return cartEntries().reduce((a, [, v]) => a + v, 0); }
 function keyParts(k) { const [mg, cond] = k.split('|'); const [model, grit] = mg.split(' #'); return { model, grit, cond }; }
@@ -638,7 +706,7 @@ function keyParts(k) { const [mg, cond] = k.split('|'); const [model, grit] = mg
 function setQty(key, qty) {
     const { model, grit, cond } = keyParts(key);
     let q = Math.max(0, Math.floor(Number(qty) || 0));
-    if (recIsOut()) q = Math.min(q, stockQty(model, grit, cond));
+    if (recCapped()) q = Math.min(q, stockQty(model, grit, cond));
     if (q) rec.cart[key] = q; else delete rec.cart[key];
     const y = window.scrollY;
     renderRec(); renderCartBar();
@@ -646,11 +714,11 @@ function setQty(key, qty) {
 }
 function renderRec() {
     const el = document.getElementById('page-rec');
-    const out = recIsOut();
+    const out = recCapped();
     const groups = groupStock();
     const items = cartEntries();
     const total = cartTotal();
-    const shortClaim = rec.type === 'claim' && items.some(([k, v]) => { const p = keyParts(k); return v > stockQty(p.model, p.grit, p.cond); });
+    const shortClaim = rec.type === 'claim' && !bdNoStock() && items.some(([k, v]) => { const p = keyParts(k); return v > stockQty(p.model, p.grit, p.cond); });
     const plist = groups.map(g => {
         const key = `${g.model} #${g.grit}|${rec.cond}`;
         const have = stockQty(g.model, g.grit, rec.cond);
@@ -658,7 +726,7 @@ function renderRec() {
         const disabled = out && have === 0;
         const ka = esc(key).replace(/'/g, '&#39;');
         return `<div class="prow ${disabled ? 'dis' : ''}"><div class="pm"><b>${esc(g.key)}</b> <span class="pill ${rec.cond === 'New' ? 'p-in' : 'p-trial'}">${rec.cond}</span>
-            <small>คงเหลือ ${fmtN(have)} ก้อน${rec.type === 'claim' && q > have ? ' · <span class="warn">ไม่พอ จะบันทึกเป็นรอของเข้า</span>' : ''}</small></div>
+            <small>คงเหลือ ${fmtN(have)} ก้อน${rec.type === 'claim' && !bdNoStock() && q > have ? ' · <span class="warn">ไม่พอ จะบันทึกเป็นรอของเข้า</span>' : ''}</small></div>
             ${disabled ? '<span class="muted" style="font-size:12px">หมด</span>' : q ? `<div class="step"><button onclick="setQty('${ka}', ${q - 1})" aria-label="ลด">−</button><input type="number" inputmode="numeric" min="0" value="${q}" aria-label="จำนวน ${esc(g.key)}" onchange="setQty('${ka}', this.value)"><button onclick="setQty('${ka}', ${q + 1})" ${out && q >= have ? 'disabled' : ''} aria-label="เพิ่ม">＋</button></div>`
                 : `<button class="addbtn" onclick="setQty('${ka}', 1)">＋ ใส่ตะกร้า</button>`}</div>`;
     }).join('');
@@ -666,13 +734,15 @@ function renderRec() {
         <h3><span>🛒 ตะกร้า</span><span class="muted" style="font-size:13px">${items.length} รายการ</span></h3>
         ${items.length ? items.map(([k, v]) => { const p = keyParts(k); const ka = esc(k).replace(/'/g, '&#39;'); return `<div class="citem"><span>${esc(p.model)} #${esc(p.grit)} · ${esc(p.cond)}</span><span><b>× ${v}</b> <button class="link danger" onclick="setQty('${ka}', 0)">ลบ</button></span></div>`; }).join('') : '<div class="empty" style="padding:14px">ยังไม่มีสินค้า เลือกจากรายการ</div>'}
         ${items.length ? `<div class="ctotal"><span>รวม</span><span>${fmtN(total)} ก้อน</span></div>` : ''}
+        ${bdActive() ? `<div class="cart-bd">${esc(bdLabel())}${rec.bd.reason.trim() ? '<br>เหตุผล: ' + esc(rec.bd.reason.trim()) : ''}</div>` : ''}
         ${shortClaim ? '<div class="notice" style="margin-top:8px">มีรุ่นที่ของไม่พอ ระบบจะบันทึกเคลมนี้เป็น “รอของเข้า” ยังไม่ตัดสต็อก</div>' : ''}
         <div class="field" style="margin-top:12px"><label for="rec-remark${cls}">หมายเหตุ</label><input id="rec-remark${cls}" value="${esc(rec.remark)}" placeholder="${rec.type === 'claim' ? 'อาการเสีย หรือข้อมูลเพิ่มเติม' : 'เช่น ส่งพร้อมใบกำกับ'}" oninput="rec.remark=this.value"></div>
-        <button class="confirm" ${items.length ? '' : 'disabled'} onclick="submitRec()">✅ ยืนยัน${REC_TYPES[rec.type]}${total ? ' ' + fmtN(total) + ' ก้อน' : ''}</button>
+        <button class="confirm" ${items.length ? '' : 'disabled'} onclick="submitRec()">✅ ยืนยัน${REC_TYPES[rec.type]}${bdActive() ? ' (ย้อนหลัง)' : ''}${total ? ' ' + fmtN(total) + ' ก้อน' : ''}</button>
     </div>`;
     el.innerHTML = `
     <div class="rec-head"><button class="back" onclick="showPage('dash')" aria-label="กลับ">‹</button><div><small class="muted">บันทึกรายการ</small><h1 style="margin:0;font-size:20px;color:var(--primary)">${REC_TYPES[rec.type]}</h1></div></div>
     <div class="typeseg">${Object.keys(REC_TYPES).map(t => `<button class="${t === rec.type ? 'on' : ''}" onclick="rec.type='${t}';if(rec.type==='claim')rec.cond='New';renderRec();renderCartBar()">${KIND_ICON[t]} ${REC_SHORT[t]}</button>`).join('')}</div>
+    ${bdBlockHtml()}
     <div class="fields">
         <div class="field"><label for="rec-cust">${rec.type === 'in' ? 'รับจาก (Supplier / ลูกค้าที่คืน)' : 'ลูกค้า / โรงสี'}</label><input id="rec-cust" value="${esc(rec.cust)}" placeholder="พิมพ์ชื่อ..." autocomplete="off" oninput="handleCustomerInput(this, event)"><datalist id="cust-list">${customers.map(c => `<option value="${esc(c)}">`).join('')}</datalist></div>
         <div class="field"><label for="rec-sale">เซลล์ / ผู้ทำรายการ</label><select id="rec-sale" onchange="rec.sale=this.value">${sales.map(s => `<option value="${esc(s)}" ${rec.sale === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></div>
@@ -725,8 +795,10 @@ async function submitRec() {
     if (!cust) { Swal.fire('กรุณาใส่ชื่อลูกค้า', '', 'warning'); return; }
     if (!items.length) { Swal.fire('ตะกร้ายังว่าง', 'กรุณาเลือกสินค้าอย่างน้อย 1 รายการ', 'warning'); return; }
     if (!rec.sale && sales.length) rec.sale = sales[0];
-    // ตรวจของพออีกรอบ (ยอดอาจเปลี่ยนหลังเลือกใส่ตะกร้า)
-    if (recIsOut()) {
+    const bdErr = bdError();
+    if (bdErr) { Swal.fire('ข้อมูลบันทึกย้อนหลังไม่ครบ', bdErr, 'warning'); return; }
+    // ตรวจของพออีกรอบ (ยอดอาจเปลี่ยนหลังเลือกใส่ตะกร้า) — แบบไม่ตัดสต็อกข้าม
+    if (recCapped()) {
         const short = items.filter(([k, v]) => { const p = keyParts(k); return v > stockQty(p.model, p.grit, p.cond); });
         if (short.length) { Swal.fire('สต็อกไม่พอ', short.map(([k]) => k.replace('|', ' ')).join(', '), 'error'); return; }
     }
@@ -740,15 +812,20 @@ async function submitRec() {
         typeLabel = 'เคลมสินค้า';
         direction = items.some(([k, v]) => { const p = keyParts(k); return v > stockQty(p.model, p.grit, p.cond); }) ? 'NONE' : 'OUT';
     }
+    const noStock = bdNoStock();
+    if (noStock) direction = 'NONE';
+    const backdate = bdActive() ? { date: rec.bd.date, time: rec.bd.time || '', reason: rec.bd.reason.trim(), noStock } : undefined;
+    const bdHtml = backdate ? `<div class="cart-bd" style="margin-top:8px"><b>${esc(bdLabel())}</b><br>เหตุผล: ${esc(backdate.reason)}<br>${noStock ? 'จำนวนคงเหลือ<b>ไม่เปลี่ยน</b>' : (rec.type === 'in' ? 'เพิ่มเข้าคลังตอนบันทึก' : 'ตัดสต็อกตอนบันทึก')}</div>` : '';
     const ok = await Swal.fire({
-        title: `ยืนยัน${REC_TYPES[rec.type]}?`, icon: 'question',
-        html: `<div style="text-align:left;font-size:14px"><b>${esc(cust)}</b> · เซลล์ ${esc(rec.sale || '-')}<br>${items.map(([k, v]) => { const p = keyParts(k); return `• ${esc(p.model)} #${esc(p.grit)} ${esc(p.cond)} × ${v}`; }).join('<br>')}<br><b>รวม ${fmtN(total)} ก้อน</b>${direction === 'NONE' ? '<br><small>ของไม่พอ — บันทึกเป็นรอของเข้า</small>' : ''}</div>`,
+        title: `ยืนยัน${REC_TYPES[rec.type]}${backdate ? ' (ย้อนหลัง)' : ''}?`, icon: 'question',
+        html: `<div style="text-align:left;font-size:14px"><b>${esc(cust)}</b> · เซลล์ ${esc(rec.sale || '-')}<br>${items.map(([k, v]) => { const p = keyParts(k); return `• ${esc(p.model)} #${esc(p.grit)} ${esc(p.cond)} × ${v}`; }).join('<br>')}<br><b>รวม ${fmtN(total)} ก้อน</b>${direction === 'NONE' && !noStock ? '<br><small>ของไม่พอ — บันทึกเป็นรอของเข้า</small>' : ''}${bdHtml}</div>`,
         showCancelButton: true, confirmButtonColor: '#12a37a', confirmButtonText: 'บันทึก', cancelButtonText: 'แก้ไข'
     });
     if (!ok.isConfirmed) return;
-    const done = await syncAction('addMultiLogs', { data: [{ sale: rec.sale, cust, typeLabel, direction, item: itemStr, qty: total, remark: (rec.remark || '').trim() }] }, `บันทึก${REC_TYPES[rec.type]}เรียบร้อย`);
+    const done = await syncAction('addMultiLogs', { data: [{ sale: rec.sale, cust, typeLabel, direction, item: itemStr, qty: total, remark: (rec.remark || '').trim(), backdate }] }, `บันทึก${REC_TYPES[rec.type]}${backdate ? 'ย้อนหลัง' : ''}เรียบร้อย`);
     if (done) {
         rec.cart = {}; rec.cust = ''; rec.remark = ''; rec.cartOpen = false;
+        rec.bd = { on: false, date: '', time: '', reason: '', noStock: false };
         showPage(rec.type === 'trial' ? 'dash' : 'hist');
     }
 }
@@ -764,6 +841,16 @@ async function confirmTestToSale(id) {
 }
 async function returnTestItem(id) {
     const l = findLogById(id); if (!l) return Swal.fire('ไม่พบรายการนี้', 'กรุณารีเฟรชแล้วลองใหม่', 'error');
+    if (l.stockMode === 'NOSTOCK') {
+        // ทดลองที่บันทึกแบบไม่ตัดสต็อก → ถามว่ารับเข้าคลังหรือไม่ (ค่าเริ่มต้น: รับเข้าเป็น Used)
+        const q = await Swal.fire({ title: 'รับคืนของทดลอง', icon: 'question',
+            html: `<div style="text-align:left;font-size:14px">ตอนส่งทดลองรายการนี้<b>ไม่ได้ตัดสต็อก</b> (บันทึกย้อนหลัง)<br><b>${esc(l.cust)}</b> · ${esc(itemsText(l, ', '))}</div>`,
+            input: 'radio', inputValue: 'add',
+            inputOptions: { add: 'รับเข้าคลังเป็น Used (แนะนำ)', skip: 'ปิดรายการอย่างเดียว ไม่เพิ่มสต็อก' },
+            showCancelButton: true, confirmButtonColor: '#64748b', confirmButtonText: 'ยืนยันรับคืน', cancelButtonText: 'ยกเลิก' });
+        if (q.isConfirmed) await syncAction('returnTestItem', { id, addStock: q.value !== 'skip' }, q.value === 'skip' ? 'ปิดรายการเรียบร้อย (ไม่เพิ่มสต็อก)' : 'รับคืนเข้าคลังเรียบร้อย');
+        return;
+    }
     const r = await Swal.fire({ title: 'รับของทดลองคืน?', html: `รับคืน <b>${esc(itemsText(l, ', '))}</b><br>จาก ${esc(l.cust)} เข้าคลังเป็น <b>Used</b>`, icon: 'question',
         showCancelButton: true, confirmButtonColor: '#64748b', confirmButtonText: 'ยืนยันรับคืน', cancelButtonText: 'ยกเลิก' });
     if (r.isConfirmed) await syncAction('returnTestItem', { id }, 'รับคืนเข้าคลังเรียบร้อย');
@@ -782,7 +869,7 @@ async function processStockClaim(id) {
 }
 async function cancelLog(id) {
     const l = findLogById(id); if (!l) return;
-    const effect = l.direction === 'OUT' ? 'ระบบจะคืนสต็อกตามรายการนี้' : (l.direction === 'IN' ? 'ระบบจะหักสต็อกที่รับเข้าออก' : 'รายการนี้ยังไม่ได้ตัดสต็อก จะไม่มีการปรับยอด');
+    const effect = isNoStock(l) ? 'รายการนี้บันทึกแบบไม่ตัดสต็อก จะไม่มีการปรับยอด' : l.direction === 'OUT' ? 'ระบบจะคืนสต็อกตามรายการนี้' : (l.direction === 'IN' ? 'ระบบจะหักสต็อกที่รับเข้าออก' : 'รายการนี้ยังไม่ได้ตัดสต็อก จะไม่มีการปรับยอด');
     const { value: reason, isConfirmed } = await Swal.fire({
         title: 'ยกเลิกรายการนี้?', html: `<b>${esc(l.typeLabel)}</b> · ${esc(l.cust)}<br>${esc(itemsText(l, ', '))}<br><small>${effect} · รายการยังอยู่ในประวัติพร้อมเหตุผล</small>`,
         input: 'text', inputPlaceholder: 'เหตุผล เช่น บันทึกผิดรุ่น', icon: 'warning', showCancelButton: true,

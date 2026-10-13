@@ -323,3 +323,19 @@ body.rec-mode .bnav { display: none; }
 
 /* มือถือ: ช่องกรอกต้อง ≥ 16px ไม่งั้น iPhone จะซูมเองตอนแตะ */
 @media (max-width: 899px) { input, select, textarea, .sel, .search input, .field input, .field select, .step input { font-size: 16px !important; } }
+
+/* ===== v2.4 บันทึกย้อนหลัง ===== */
+.bd-card { padding: 14px 16px; }
+.bd-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bd-body { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.bd-opt { display: flex; gap: 10px; align-items: flex-start; border: 1.5px solid var(--line); border-radius: var(--r-md); padding: 11px 13px; cursor: pointer; background: var(--surface); }
+.bd-opt.on { border-color: var(--accent); background: #f3fbf7; }
+.bd-opt input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); flex: none; }
+.bd-opt small { display: block; color: var(--sub); font-size: 12.5px; line-height: 1.5; margin-top: 2px; }
+.bd-opt.dis { opacity: .55; cursor: not-allowed; }
+.p-bd { background: #fff3d6; color: #8a5a00; }
+.p-nost { background: var(--grey-soft); color: #555; border: 1px dashed #aaa; }
+.hrow .note.bd-note { color: #8a5a00; }
+.cart-bd { margin-top: 8px; font-size: 12.5px; background: #fff3d6; color: #7a4a06; border-radius: var(--r-sm); padding: 8px 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.trial .tags { display: flex; gap: 5px; flex-wrap: wrap; margin: 3px 0 1px; }
+.swal2-radio { flex-direction: column; align-items: flex-start; gap: 8px; }
