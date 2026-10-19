@@ -1,5 +1,5 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzJ8HJ1FlVckHAwJxkGJbySBbDfrtcEoxYR9tbxSBqhYv3smR4U1qqQC4mwnA57EF7Jvw/exec";
-const APP_VERSION = '2.7.2';
+const APP_VERSION = '2.7.3';
 const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับ Google Script
 const ADMIN_SESSION_KEY = 'rds_admin_session';
 const CACHE_KEY = 'rds_cache';
@@ -19,6 +19,7 @@ let currentPage = 'exec';
 const LANG_KEY = 'rds_lang';
 const LANG = (() => { try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'th'; } catch (e) { return 'th'; } })();
 const EN_DICT = {
+    "เริ่มทดลอง": "Trial started",
     "ลองใหม่": "Try again",
     "คืนสต็อก": "Stock returned",
     "หักสต็อกออก": "Stock removed",
@@ -668,7 +669,7 @@ function init() {
     startSplashMessages();
     try {
         const cached = localStorage.getItem(CACHE_KEY);
-        if (cached) { applyData(JSON.parse(cached)); hideLoading(true); renderAll(); }
+        if (cached) { applyData(JSON.parse(cached)); hideLoading(); renderAll(); }
     } catch (e) { try { localStorage.removeItem(CACHE_KEY); } catch (_) { } }
     restoreAdminSession();
     renderAll();
@@ -687,8 +688,9 @@ function applyData(data) {
     if (data.tr) TR = Object.assign({}, data.tr);
     dataReady = true; loadFailed = false;
 }
-// หน้าโหลดครั้งแรก: แสดงเฉพาะตอนยังไม่มีข้อมูลในเครื่อง · โชว์อย่างน้อย 1.6 วิ ให้แอนิเมชันเล่นจบ ไม่กระพริบ
-const SPLASH_T0 = Date.now(), SPLASH_MIN = 1600;
+// หน้าโหลด: แสดงทุกครั้งที่เปิดแอป อย่างน้อย 2.8 วิ ให้แอนิเมชันเล่นจบ (วาดเพชร → เติมสี → ตัวอักษร → แสงวิ่ง)
+//   ถ้ายังไม่มีข้อมูลในเครื่อง จะรอจนข้อมูลมาครบ (นานกว่า 2.8 วิได้)
+const SPLASH_T0 = Date.now(), SPLASH_MIN = 2800;
 let splashTimer = null;
 const SPLASH_MSGS = [['กำลังเชื่อมต่อระบบ...', 'Connecting...'], ['กำลังโหลดข้อมูลสต็อก...', 'Loading stock data...'], ['กำลังเตรียม Dashboard...', 'Preparing your dashboard...'], ['อีกนิดเดียว...', 'Almost there...']];
 function startSplashMessages() {
@@ -857,6 +859,8 @@ function findLogById(id) { return allLogs.find(l => l.id === id) || (summary && 
 // ============================================================
 // หน้าภาพรวม — ลูกค้าทดลองใช้งานอยู่บนสุด (เจ้านายเช็คทุกวัน)
 // ============================================================
+/** วันที่แบบเต็ม (จอ): ไทย "28 ก.ย. 2569" · อังกฤษ "28 Sep 2026" */
+function thaiLongDateUI(d) { return !d ? '-' : LANG === 'en' ? thaiShort(d) : `${d.getDate()} ${TH_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`; }
 function trialCardsHtml(trials, withActions) {
     if (!trials.length) return T('<div class="empty">ไม่มีลูกค้าที่ทดลองใช้งานอยู่ตอนนี้ 🎉</div>');
     return `<div class="trial-list">${trials.map(t => {
@@ -866,7 +870,8 @@ function trialCardsHtml(trials, withActions) {
             <div class="days ${daysClass(d)}"><b>${d ?? '?'}</b><small>${TP(d ?? '?', 'วัน')}</small></div>
             <div class="who"><b>${esc(U(t.cust))}</b>${isBackdated(t) || isNoStock(t) ? `<div class="tags">${bdPillsHtml(t)}</div>` : ''}
                 <div class="items">${esc(itemsText(t))}</div>
-                <small>${T('ผู้จัดทำ')} ${esc(U(t.sale) || '-')} · ${T('ส่งเมื่อ')} ${thaiShort(sent)}${t.remark ? ' · 📝 ' + esc(U(t.remark)) : ''}</small>
+                <div class="t-start">📅 ${T('เริ่มทดลอง')} <b>${thaiLongDateUI(sent)}</b></div>
+                <small>${T('ผู้จัดทำ')} ${esc(U(t.sale) || '-')}${t.remark ? ' · 📝 ' + esc(U(t.remark)) : ''}</small>
                 ${withActions ? `<div class="acts"><button class="mini g" onclick="confirmTestToSale('${esc(t.id)}')">💰 ${T('ลูกค้าซื้อแล้ว')}</button><button class="mini s" onclick="returnTestItem('${esc(t.id)}')">🔄 ${T('รับคืน')}</button>${printBtnHtml(t)}</div>` : ''}
             </div></div>`;
     }).join('')}</div>`;
@@ -1524,20 +1529,20 @@ function copyReport() {
     const open = openItems();
     const trials = open.filter(o => o.status === 'PENDING');
     const claims = open.filter(o => o.status === 'WAITING_CLAIM' || o.status === 'WAITING_STOCK');
-    const lines = ['📦 สต็อกหินขัด RDS', `ณ ${thaiShortTH(now)} เวลา ${thaiTimeTH(now)}`, LINE_RULE,
+    const lines = ['📦 สต็อกหินขัด RDS', `ณ วันที่ ${thaiShortTH(now)} เวลา ${thaiTimeTH(now)}`, LINE_RULE,
         ...groups.map(g => `${g.key} · New ${g.newQty} · Used ${g.usedQty} = ${g.newQty + g.usedQty}${g.low ? ' ⚠️' : ''}`),
-        LINE_RULE, `รวมทั้งคลัง ${n + u} ก้อน (New ${n} · Used ${u})`];
+        LINE_RULE, `รวมทั้งหมด ${n + u} ก้อน (New ${n} · Used ${u})`];
     const tail = [];
     if (low.length) tail.push(`⚠️ ใกล้หมด : ${low.map(g => g.key).join(', ')}`);
-    if (trials.length) tail.push(`🧪 ทดลองค้าง ${trials.length} ราย · นานสุด ${Math.max(...trials.map(t => t.days || 0))} วัน`);
-    if (claims.length) tail.push(`🛡️ รอเคลม ${claims.length} ราย`);
+    if (trials.length) tail.push(`🧪 ทดลองค้าง รวม ${trials.length} ราย · นานสุด ${Math.max(...trials.map(t => t.days || 0))} วัน`);
+    if (claims.length) tail.push(`🛡️ รอเคลม รวม ${claims.length} ราย`);
     if (tail.length) lines.push('', ...tail);
     copyText(lines.join('\n'));
 }
 function copyTrials() {
     const trials = openItems().filter(o => o.status === 'PENDING').slice().sort((a, b) => (b.days || 0) - (a.days || 0));
-    const lines = ['🧪 ลูกค้าทดลองใช้งาน RDS', `ณ ${thaiShortTH(new Date())} · ${trials.length} ราย`, LINE_RULE,
-        ...trials.map(t => `${t.days > TRIAL_ALERT_DAYS ? '🔴' : t.days > TRIAL_WARN_DAYS ? '🟡' : '🟢'} ${t.cust} · ${t.days} วัน\n   ${itemsText(t, ', ')} (${t.sale || '-'})`)];
+    const lines = ['🧪 ลูกค้าทดลองใช้งาน RDS', `ณ วันที่ ${thaiShortTH(new Date())}`, `รวมทั้งหมด ${trials.length} ราย`, LINE_RULE,
+        ...trials.map(t => `${t.days > TRIAL_ALERT_DAYS ? '🔴' : t.days > TRIAL_WARN_DAYS ? '🟡' : '🟢'} ${t.cust} · ${t.days} วัน\n   เริ่มทดลอง ${thaiShortTH(logDate(t))}\n   ${itemsText(t, ', ')} (ผู้จัดทำ ${t.sale || '-'})`)];
     copyText(lines.join('\n'));
 }
 function copyWeekly() {
@@ -1547,15 +1552,15 @@ function copyWeekly() {
     const trend = pct === null ? '' : (pct >= 0 ? ` (▲ ${pct}% จากสัปดาห์ก่อน)` : ` (▼ ${Math.abs(pct)}% จากสัปดาห์ก่อน)`);
     const overdue = s.open.filter(o => o.status === 'PENDING' && o.days > TRIAL_ALERT_DAYS);
     const low = s.stock.filter(g => g.low);
-    const lines = ['📊 สรุปสัปดาห์ RDS', `${thaiShortTH(new Date(w.from))} – ${thaiShortTH(new Date(w.to))}`, LINE_RULE,
+    const lines = ['📊 สรุปสัปดาห์ RDS', `ช่วงวันที่ ${thaiShortTH(new Date(w.from))} – ${thaiShortTH(new Date(w.to))}`, LINE_RULE,
         `ขาย ${w.sale} ก้อน${trend}`, `ส่งทดลอง ${w.trialSent} ก้อน · ปิดเป็นขาย ${w.trialConverted}`, `รับเข้า ${w.inQty} ก้อน · เคลม ${w.claimQty} ก้อน`];
     if (w.topModel || w.topSale) lines.push('');
     if (w.topModel) lines.push(`ขายดีสุด : ${w.topModel[0]} (${w.topModel[1]} ก้อน)`);
     if (w.topSale) lines.push(`ผู้จัดทำยอดสูงสุด : ${w.topSale[0]} (${w.topSale[1]} ก้อน)`);
-    lines.push('', `คงเหลือในคลัง ${s.stockTotal.n + s.stockTotal.u} ก้อน (New ${s.stockTotal.n} · Used ${s.stockTotal.u})`);
+    lines.push('', `คงเหลือในคลัง รวมทั้งหมด ${s.stockTotal.n + s.stockTotal.u} ก้อน (New ${s.stockTotal.n} · Used ${s.stockTotal.u})`);
     if (overdue.length || low.length) {
         lines.push('', 'ต้องติดตาม');
-        if (overdue.length) { lines.push(`• ทดลองเกิน ${TRIAL_ALERT_DAYS} วัน ${overdue.length} ราย`); overdue.slice(0, 5).forEach(o => lines.push(`  ${o.cust} ${o.days} วัน (${o.sale || '-'})`)); }
+        if (overdue.length) { lines.push(`• ทดลองเกิน ${TRIAL_ALERT_DAYS} วัน รวม ${overdue.length} ราย`); overdue.slice(0, 5).forEach(o => lines.push(`  ${o.cust} ${o.days} วัน · เริ่ม ${thaiShortTH(logDate(o))} (${o.sale || '-'})`)); }
         if (low.length) lines.push(`• ใกล้หมด : ${low.map(g => `${g.key} (${g.newQty})`).join(', ')}`);
     }
     copyText(lines.join('\n'));
