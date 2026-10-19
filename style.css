@@ -357,3 +357,52 @@ body.rec-mode .bnav { display: none; }
 .sup-text { width: 100%; min-height: 240px; margin-top: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; font: 13.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--soft); color: var(--ink); resize: vertical; box-sizing: border-box; }
 .sup-copy { margin-top: 10px; }
 @media (max-width: 420px) { .top .t small { display: none; } }
+
+/* ===== v2.6.0 พิมพ์ใบเคลม / ใบรับสินค้า ===== */
+.mini.pr { background: var(--soft); color: var(--primary); border: 1px solid var(--line); }
+#print-slot { display: none; }
+@media print {
+    @page { size: A4; margin: 0; }
+    html, body { background: #fff !important; }
+    body > *:not(#print-slot) { display: none !important; }
+    #print-slot { display: block !important; }
+    .swal2-container { display: none !important; }
+}
+#print-slot { --pm: #3F654D; --ps1: #63816F; --ps2: #D2DCD8; --pink: #201E1D; font-family: 'Chakra Petch', 'Anuphan', sans-serif; color: var(--pink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.pdoc { width: 210mm; height: 297mm; padding: 14mm 15mm 12mm; display: flex; flex-direction: column; position: relative; box-sizing: border-box; overflow: hidden; break-after: page; page-break-after: always; background: #fff; }
+.pdoc:last-child { break-after: auto; page-break-after: auto; }
+.pdoc * { box-sizing: border-box; }
+.p-copy { position: absolute; top: 6mm; right: 15mm; font-size: 8pt; color: var(--ps1); letter-spacing: .08em; }
+.p-hd { display: flex; justify-content: space-between; align-items: flex-start; gap: 6mm; padding-bottom: 5mm; border-bottom: 1.2pt solid var(--pm); }
+.p-hd img { width: 46mm; display: block; }
+.p-co { font-size: 9.5pt; line-height: 1.45; color: #4a4a46; margin-top: 2mm; }
+.p-co b { color: var(--pink); font-weight: 600; }
+.p-doc { text-align: right; flex: none; }
+.p-doc h1 { margin: 0; font-size: 22pt; font-weight: 700; color: var(--pm); line-height: 1.1; }
+.p-en { font-size: 9.5pt; letter-spacing: .12em; color: var(--ps1); font-weight: 500; }
+.p-no { margin-top: 3mm; font-size: 10pt; }
+.p-no b { font-weight: 600; }
+.p-tag { display: inline-block; margin-top: 2mm; padding: 1mm 3.5mm; background: var(--pm); border-radius: 99px; font-size: 9pt; font-weight: 600; color: #fff; }
+.p-meta { display: grid; grid-template-columns: 1fr 1fr; margin-top: 6mm; border: 1pt solid var(--ps1); border-radius: 2.5mm; overflow: hidden; }
+.p-meta div { padding: 2.6mm 4mm; font-size: 11pt; border-bottom: 1pt solid var(--ps2); overflow-wrap: anywhere; }
+.p-meta div:nth-child(odd) { border-right: 1pt solid var(--ps2); }
+.p-meta div:nth-last-child(-n+2) { border-bottom: 0; }
+.p-meta small { display: block; font-size: 8.5pt; color: var(--pm); font-weight: 600; margin-bottom: .5mm; }
+.pdoc h3 { font-size: 11pt; font-weight: 600; color: var(--pm); margin: 6mm 0 2mm; }
+.pdoc table { width: 100%; border-collapse: collapse; font-size: 11pt; }
+.pdoc th { background: var(--pm); color: #fff; font-weight: 600; font-size: 9.5pt; text-align: left; padding: 2.4mm 3mm; }
+.pdoc td { padding: 2.4mm 3mm; border-bottom: .6pt solid var(--ps2); }
+.pdoc .n { text-align: right; width: 32mm; white-space: nowrap; }
+.pdoc .c { width: 12mm; text-align: center; }
+.pdoc td.c { color: #6b6b63; }
+.pdoc tr.tot td { border-bottom: 0; font-weight: 700; border-top: 1pt solid var(--pm); }
+.p-box { border: 1pt solid var(--ps2); border-radius: 2.5mm; padding: 3mm 4mm; font-size: 10.5pt; min-height: 14mm; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
+.p-chk { display: flex; gap: 7mm; flex-wrap: wrap; font-size: 10.5pt; margin-top: 1mm; }
+.p-chk span::before { content: ''; display: inline-block; width: 3.6mm; height: 3.6mm; border: 1pt solid var(--pink); border-radius: .6mm; margin-right: 2mm; vertical-align: -.5mm; }
+.p-stmt { margin-top: 6mm; font-size: 10.5pt; line-height: 1.55; background: var(--ps2); border-left: 1.4mm solid var(--pm); padding: 3mm 4mm; }
+.p-sig { margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; padding-top: 8mm; }
+.p-sig > div { text-align: center; font-size: 10pt; }
+.p-line { border-bottom: .8pt dotted var(--pink); height: 16mm; margin-bottom: 2mm; }
+.p-sig b { display: block; font-weight: 600; margin-top: 1mm; }
+.p-sig small { color: #6b6b63; }
+.p-ft { margin-top: 7mm; padding-top: 2.5mm; border-top: .6pt solid var(--ps2); display: flex; justify-content: space-between; font-size: 8pt; color: #6b6b63; }

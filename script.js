@@ -1,5 +1,5 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzJ8HJ1FlVckHAwJxkGJbySBbDfrtcEoxYR9tbxSBqhYv3smR4U1qqQC4mwnA57EF7Jvw/exec";
-const APP_VERSION = '2.5.0';
+const APP_VERSION = '2.6.0';
 const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับ Google Script
 const ADMIN_SESSION_KEY = 'rds_admin_session';
 const CACHE_KEY = 'rds_cache';
@@ -13,12 +13,19 @@ let currentPage = 'exec';
 // ============================================================
 // ภาษา (ไทย / English) — v2.5.0
 //   T('ข้อความไทย')  → ข้อความหน้าจอ (แปลไว้ล่วงหน้าใน EN_DICT ด้านล่าง แก้คำแปลได้ที่นี่)
-//   U(ข้อความที่ผู้ใช้พิมพ์) → ชื่อลูกค้า/เซลล์/หมายเหตุ แปลอัตโนมัติด้วย Google Translate (เก็บในชีต Translations, Admin แก้ได้)
+//   U(ข้อความที่ผู้ใช้พิมพ์) → ชื่อลูกค้า/ผู้จัดทำ/หมายเหตุ แปลอัตโนมัติด้วย Google Translate (เก็บในชีต Translations, Admin แก้ได้)
 //   ข้อความส่ง LINE กลุ่มทีม (copyReport / copyTrials / copyWeekly) เป็นภาษาไทยเสมอ
 // ============================================================
 const LANG_KEY = 'rds_lang';
 const LANG = (() => { try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'th'; } catch (e) { return 'th'; } })();
 const EN_DICT = {
+    "พิมพ์": "Print",
+    "ถัดไป": "Next",
+    "กรุณาระบุชื่อ": "Please enter a name",
+    "ชื่อใหม่เหมือนชื่อเดิม": "The new name is the same as the old one",
+    "ยืนยันแก้ชื่อ?": "Confirm rename?",
+    "แก้ชื่อเรียบร้อย": "Renamed",
+    "แก้ชื่อ": "Rename",
     " (จากทดลอง)": " (from trial)",
     " (ย้อนหลัง)": " (backdated)",
     " <span class=\"pill p-low\">ใกล้หมด</span>": " <span class=\"pill p-low\">Low stock</span>",
@@ -163,9 +170,9 @@ const EN_DICT = {
     "ทั้งหมด": "All",
     "ทำรายการไม่สำเร็จ": "Action failed",
     "ทีมงาน": "Team member",
-    "ทีมงาน / เซลล์": "Team / reps",
+    "ทีมงาน / ผู้จัดทำ": "Team (prepared by)",
     "ทุกช่วงเวลา": "All time",
-    "ทุกเซลล์": "All reps",
+    "ทุกผู้จัดทำ": "Everyone",
     "น.": "",
     "บันทึก": "Save",
     "บันทึกชื่อภาษาอังกฤษแล้ว": "English name saved",
@@ -203,7 +210,7 @@ const EN_DICT = {
     "ยอดขาย": "Sales",
     "ยอดขาย (ก้อน)": "Sales (pcs)",
     "ยอดขายนับวันนี้": "counted as sold today",
-    "ยอดขายรายเซลล์": "Sales by rep",
+    "ยอดขายตามผู้จัดทำ": "Sales by preparer",
     "ยังมีสต็อกคงเหลือ": "still has stock on hand:",
     "ยังลบไม่ได้": "Cannot delete yet",
     "ยังไม่มีข้อมูลสรุป": "No summary data yet",
@@ -254,7 +261,7 @@ const EN_DICT = {
     "ลบรุ่นแล้ว": "Model deleted",
     "ลูกค้า": "Customers",
     "ลูกค้า / โรงสี": "Customer / mill",
-    "ลูกค้า รุ่น เซลล์ หมายเหตุ": "Customer, model, rep, note",
+    "ลูกค้า รุ่น ผู้จัดทำ หมายเหตุ": "Customer, model, preparer, note",
     "ลูกค้าซื้อสูงสุด": "Top customers",
     "ลูกค้าซื้อแล้ว": "Customer bought",
     "ลูกค้าตกลงซื้อแล้ว?": "Customer agreed to buy?",
@@ -310,9 +317,8 @@ const EN_DICT = {
     "เชื่อมต่อ Google Script ไม่ได้ตามที่คาด (ได้รับข้อมูลที่ไม่ใช่ JSON) — โปรดตรวจสอบว่า Deploy เวอร์ชันล่าสุดแล้ว และสิทธิ์การเข้าถึงตั้งเป็น \"Anyone\"": "Could not connect to Google Script as expected (received non-JSON data) — please check that the latest version is deployed and access is set to \"Anyone\"",
     "เชื่อมต่อไม่ได้": "Connection failed",
     "เช่น ส่งพร้อมใบกำกับ": "e.g. sent with invoice",
-    "เช่น เซลล์ส่งของหน้างาน ลืมบันทึกในระบบ": "e.g. rep delivered on site and forgot to record it",
-    "เซลล์": "Rep",
-    "เซลล์ / ผู้ทำรายการ": "Rep / recorded by",
+    "เช่น ส่งของหน้างานแล้วลืมบันทึกในระบบ": "e.g. delivered on site and forgot to record it",
+    "ผู้จัดทำ": "Prepared by",
     "เดือนก่อน ": "Last month ",
     "เดือนนี้": "This month",
     "เบอร์ต้องเป็นตัวเลข": "Grit must be a number",
@@ -388,7 +394,7 @@ function applyStaticLang() {
     document.querySelectorAll('[data-en-label]').forEach(el => el.setAttribute('aria-label', el.dataset.enLabel));
 }
 
-// ---- ข้อความจากผู้ใช้ (ชื่อลูกค้า / เซลล์ / หมายเหตุ) ----
+// ---- ข้อความจากผู้ใช้ (ชื่อลูกค้า / ผู้จัดทำ / หมายเหตุ) ----
 const HAS_THAI = /[฀-๿]/;
 let TR = {};                         // th → en (จากชีต Translations)
 const trAsked = new Set(), trQueue = new Set();
@@ -458,6 +464,8 @@ const SERVER_MSG = [
     [/^ไม่พบรายการนี้.*/, () => 'Entry not found (it may have been changed by another user) — please refresh'],
     [/^เกิดข้อผิดพลาดที่เซิร์ฟเวอร์(?: \(doGet\))?: (.*)$/, m => 'Server error: ' + m[1]],
     [/^ข้อความยาวเกินไป$/, () => 'Text is too long'],
+    [/^ชื่อใหม่เหมือนชื่อเดิม$/, () => 'The new name is the same as the old one'],
+    [/^ไม่พบชื่อนี้ในรายชื่อ$/, () => 'Name not found in the list'],
 ];
 function TS(msg) {
     const s = String(msg || '');
@@ -767,8 +775,8 @@ function trialCardsHtml(trials, withActions) {
             <div class="days ${daysClass(d)}"><b>${d ?? '?'}</b><small>${TP(d ?? '?', 'วัน')}</small></div>
             <div class="who"><b>${esc(U(t.cust))}</b>${isBackdated(t) || isNoStock(t) ? `<div class="tags">${bdPillsHtml(t)}</div>` : ''}
                 <div class="items">${esc(itemsText(t))}</div>
-                <small>${T('เซลล์')} ${esc(U(t.sale) || '-')} · ${T('ส่งเมื่อ')} ${thaiShort(sent)}${t.remark ? ' · 📝 ' + esc(U(t.remark)) : ''}</small>
-                ${withActions ? `<div class="acts"><button class="mini g" onclick="confirmTestToSale('${esc(t.id)}')">💰 ${T('ลูกค้าซื้อแล้ว')}</button><button class="mini s" onclick="returnTestItem('${esc(t.id)}')">🔄 ${T('รับคืน')}</button></div>` : ''}
+                <small>${T('ผู้จัดทำ')} ${esc(U(t.sale) || '-')} · ${T('ส่งเมื่อ')} ${thaiShort(sent)}${t.remark ? ' · 📝 ' + esc(U(t.remark)) : ''}</small>
+                ${withActions ? `<div class="acts"><button class="mini g" onclick="confirmTestToSale('${esc(t.id)}')">💰 ${T('ลูกค้าซื้อแล้ว')}</button><button class="mini s" onclick="returnTestItem('${esc(t.id)}')">🔄 ${T('รับคืน')}</button>${printBtnHtml(t)}</div>` : ''}
             </div></div>`;
     }).join('')}</div>`;
 }
@@ -929,7 +937,7 @@ function escClose(e) { if (e.key === 'Escape') closeModal(); }
 function closeModal() { document.getElementById('modal-slot').innerHTML = ''; document.removeEventListener('keydown', escClose); }
 
 // ============================================================
-// ประวัติ — ตัวกรองตามประเภท / ช่วงเวลา / เซลล์ / คำค้น
+// ประวัติ — ตัวกรองตามประเภท / ช่วงเวลา / ผู้จัดทำ / คำค้น
 // ============================================================
 const histState = { kind: 'all', period: 'all', date: '', seller: 'all', q: '', limit: 40 };
 const isBackdated = l => !!(l && l.recordedAt);
@@ -983,7 +991,7 @@ function renderHist() {
     <div class="ptitle"><h1>${T('ประวัติ')}</h1><small id="hist-sub"></small></div>
     <div class="hist-layout">
         <div class="filters">
-            <label class="search">🔍<input id="hist-q" type="search" placeholder="${T('ลูกค้า รุ่น เซลล์ หมายเหตุ')}" autocomplete="off" list="hist-cust-list" enterkeyhint="search"></label>
+            <label class="search">🔍<input id="hist-q" type="search" placeholder="${T('ลูกค้า รุ่น ผู้จัดทำ หมายเหตุ')}" autocomplete="off" list="hist-cust-list" enterkeyhint="search"></label>
             <datalist id="hist-cust-list"></datalist>
             <div id="hist-ctrl" style="display:flex;flex-direction:column;gap:10px"></div>
         </div>
@@ -1009,7 +1017,7 @@ function renderHist() {
                     ${[['all', T('ทุกช่วงเวลา')], ['today', T('วันนี้')], ['7', T('7 วันล่าสุด')], ['month', T('เดือนนี้')], ['date', T('เลือกวันที่...')]].map(([v, t]) => `<option value="${v}" ${st.period === v ? 'selected' : ''}>${t}</option>`).join('')}
                 </select>
                 ${st.period === 'date' ? `<input class="sel" type="date" id="hist-date" value="${esc(st.date)}">` : ''}
-                <select class="sel" id="hist-seller" aria-label="${T('เซลล์')}"><option value="all">${T('ทุกเซลล์')}</option>${sellers.map(s => `<option value="${esc(s)}" ${st.seller === s ? 'selected' : ''}>${esc(U(s))}</option>`).join('')}</select>
+                <select class="sel" id="hist-seller" aria-label="${T('ผู้จัดทำ')}"><option value="all">${T('ทุกผู้จัดทำ')}</option>${sellers.map(s => `<option value="${esc(s)}" ${st.seller === s ? 'selected' : ''}>${esc(U(s))}</option>`).join('')}</select>
             </div>`;
     document.getElementById('hist-results').innerHTML = `
             <div class="result"><span>${T('พบ')} ${fmtN(list.length)} ${TP(fmtN(list.length), 'รายการ')} · ${T('รวม')} ${fmtN(total)} ${T('ก้อน')}</span>${filtered ? T('<button onclick="clearHist()">ล้างตัวกรอง</button>') : ''}</div>
@@ -1028,6 +1036,7 @@ function histRowHtml(l) {
     if (l.status === 'PENDING') acts.push(`<button class="mini g" onclick="confirmTestToSale('${id}')">💰 ${T('ลูกค้าซื้อแล้ว')}</button><button class="mini s" onclick="returnTestItem('${id}')">🔄 ${T('รับคืน')}</button>`);
     if (l.status === 'WAITING_CLAIM') acts.push(`<button class="mini p" onclick="closeClaim('${id}')">📦 ${T('ปิดงานเคลม')}</button>`);
     if (l.status === 'WAITING_STOCK') acts.push(`<button class="mini r" onclick="processStockClaim('${id}')">⚡ ${T('ของเข้าแล้ว ตัดสต็อก')}</button>`);
+    if (canPrint(l)) acts.push(printBtnHtml(l));
     if (isAdmin && l.status !== 'CANCELLED') {
         acts.push(`<button class="link" onclick="editRemark('${id}')">${T('แก้หมายเหตุ')}</button>`);
         if (!['RETURNED', 'CLAIMED'].includes(l.status)) acts.push(`<button class="link danger" onclick="cancelLog('${id}')">${T('ยกเลิกรายการ')}</button>`);
@@ -1036,7 +1045,7 @@ function histRowHtml(l) {
         <div class="avatar a-${k}">${KIND_ICON[k]}</div>
         <div><div class="head">${statusPill(l)}${bdPillsHtml(l)}<b>${esc(U(l.cust))}</b></div>
             <div class="items">${esc(itemsText(l))}</div>
-            <div class="meta">${d ? thaiTime(d) : esc(l.date)} · ${T('เซลล์')} ${esc(U(l.sale) || '-')} · <span class="mono">${id}</span></div>
+            <div class="meta">${d ? thaiTime(d) : esc(l.date)} · ${T('ผู้จัดทำ')} ${esc(U(l.sale) || '-')} · <span class="mono">${id}</span></div>
             ${bdNoteHtml(l)}
             ${l.remark ? `<div class="note">📝 ${esc(U(l.remark))}</div>` : ''}
             ${l.status === 'CANCELLED' ? `<div class="note cancel">${T('ยกเลิกแล้ว', 'r')}${l.cancelReason ? ' · ' + esc(U(l.cancelReason)) : ''}</div>` : ''}
@@ -1144,7 +1153,7 @@ function bdBlockHtml() {
                 <div class="field"><label for="bd-date">${T('วันที่เกิดขึ้นจริง')} *</label><input type="date" id="bd-date" value="${esc(b.date)}" max="${maxD}" min="${bdIsoDate(minDd)}" onchange="setBd({date:this.value},true)"></div>
                 <div class="field"><label for="bd-time">${T('เวลา')} (${T('ไม่บังคับ')})</label><input type="time" id="bd-time" value="${esc(b.time)}" onchange="setBd({time:this.value},true)"></div>
             </div>
-            <div class="field"><label for="bd-reason">${T('เหตุผลที่บันทึกย้อนหลัง')} *</label><input id="bd-reason" value="${esc(b.reason)}" maxlength="300" placeholder="${T('เช่น เซลล์ส่งของหน้างาน ลืมบันทึกในระบบ')}" oninput="rec.bd.reason=this.value" onchange="setBd({},true)"></div>
+            <div class="field"><label for="bd-reason">${T('เหตุผลที่บันทึกย้อนหลัง')} *</label><input id="bd-reason" value="${esc(b.reason)}" maxlength="300" placeholder="${T('เช่น ส่งของหน้างานแล้วลืมบันทึกในระบบ')}" oninput="rec.bd.reason=this.value" onchange="setBd({},true)"></div>
             <div class="field"><label>${isIn ? T('การเพิ่มสต็อก') : T('การตัดสต็อก')} *</label></div>
             <label class="bd-opt ${noStock ? '' : 'on'}"><input type="radio" name="bd-sm" ${noStock ? '' : 'checked'} onchange="setBd({noStock:false},true)"><span><b>${yesT}</b><small>${yesD}</small></span></label>
             <label class="bd-opt ${noStock ? 'on' : ''} ${isAdmin ? '' : 'dis'}"><input type="radio" name="bd-sm" id="bd-nostock" ${noStock ? 'checked' : ''} ${isAdmin ? '' : 'disabled'} onchange="setBd({noStock:true},true)"><span><b>${noT}</b> <span class="pill p-claim">Admin</span><small>${isAdmin ? noD : noD + T(' — ต้องเข้าสู่ระบบ Admin (รูปกุญแจ) ก่อน')}</small></span></label>
@@ -1210,7 +1219,7 @@ function renderRec() {
     ${bdBlockHtml()}
     <div class="fields">
         <div class="field"><label for="rec-cust">${rec.type === 'in' ? T('รับจาก (Supplier / ลูกค้าที่คืน)') : T('ลูกค้า / โรงสี')}</label><input id="rec-cust" value="${esc(rec.cust)}" placeholder="${T('พิมพ์ชื่อ...')}" autocomplete="off" oninput="handleCustomerInput(this, event)"><datalist id="cust-list">${customers.map(c => `<option value="${esc(c)}">`).join('')}</datalist></div>
-        <div class="field"><label for="rec-sale">${T('เซลล์ / ผู้ทำรายการ')}</label><select id="rec-sale" onchange="rec.sale=this.value">${sales.map(s => `<option value="${esc(s)}" ${rec.sale === s ? 'selected' : ''}>${esc(U(s))}</option>`).join('')}</select></div>
+        <div class="field"><label for="rec-sale">${T('ผู้จัดทำ')}</label><select id="rec-sale" onchange="rec.sale=this.value">${sales.map(s => `<option value="${esc(s)}" ${rec.sale === s ? 'selected' : ''}>${esc(U(s))}</option>`).join('')}</select></div>
     </div>
     ${rec.type === 'trial' ? T('<div class="notice">ส่งทดลองหลายรุ่นในครั้งเดียวได้ · ตอนปิดงานจะปิดทั้งรายการ (ลูกค้าซื้อทั้งหมด หรือคืนทั้งหมด)</div>') : ''}
     ${rec.type === 'in' && rec.cond === 'Used' ? T('<div class="notice">รับคืนเป็น Used — ถ้าเป็นของทดลองที่ลูกค้าคืน ให้กด “รับคืน” ที่รายการทดลองแทน สต็อกจะไม่ซ้ำ</div>') : ''}
@@ -1283,7 +1292,7 @@ async function submitRec() {
     const bdHtml = backdate ? `<div class="cart-bd" style="margin-top:8px"><b>${esc(bdLabel())}</b><br>${T('เหตุผล')}: ${esc(backdate.reason)}<br>${noStock ? T('จำนวนคงเหลือ<b>ไม่เปลี่ยน</b>') : (rec.type === 'in' ? T('เพิ่มเข้าคลังตอนบันทึก') : T('ตัดสต็อกตอนบันทึก'))}</div>` : '';
     const ok = await Swal.fire({
         title: `${T('ยืนยัน', 'r')}${REC_TYPES[rec.type]}${backdate ? T(' (ย้อนหลัง)') : ''}?`, icon: 'question',
-        html: `<div style="text-align:left;font-size:14px"><b>${esc(U(cust))}</b> · ${T('เซลล์')} ${esc(U(rec.sale) || '-')}<br>${items.map(([k, v]) => { const p = keyParts(k); return `• ${esc(p.model)} #${esc(p.grit)} ${esc(p.cond)} × ${v}`; }).join('<br>')}<br><b>${T('รวม')} ${fmtN(total)} ${T('ก้อน')}</b>${direction === 'NONE' && !noStock ? T('<br><small>ของไม่พอ — บันทึกเป็นรอของเข้า</small>') : ''}${bdHtml}</div>`,
+        html: `<div style="text-align:left;font-size:14px"><b>${esc(U(cust))}</b> · ${T('ผู้จัดทำ')} ${esc(U(rec.sale) || '-')}<br>${items.map(([k, v]) => { const p = keyParts(k); return `• ${esc(p.model)} #${esc(p.grit)} ${esc(p.cond)} × ${v}`; }).join('<br>')}<br><b>${T('รวม')} ${fmtN(total)} ${T('ก้อน')}</b>${direction === 'NONE' && !noStock ? T('<br><small>ของไม่พอ — บันทึกเป็นรอของเข้า</small>') : ''}${bdHtml}</div>`,
         showCancelButton: true, confirmButtonColor: '#12a37a', confirmButtonText: T('บันทึก'), cancelButtonText: T('แก้ไข')
     });
     if (!ok.isConfirmed) return;
@@ -1390,7 +1399,7 @@ function copyWeekly() {
         `ขาย ${w.sale} ก้อน${trend}`, `ส่งทดลอง ${w.trialSent} ก้อน · ปิดเป็นขาย ${w.trialConverted}`, `รับเข้า ${w.inQty} ก้อน · เคลม ${w.claimQty} ก้อน`];
     if (w.topModel || w.topSale) lines.push('');
     if (w.topModel) lines.push(`ขายดีสุด : ${w.topModel[0]} (${w.topModel[1]} ก้อน)`);
-    if (w.topSale) lines.push(`เซลล์ยอดสูงสุด : ${w.topSale[0]} (${w.topSale[1]} ก้อน)`);
+    if (w.topSale) lines.push(`ผู้จัดทำยอดสูงสุด : ${w.topSale[0]} (${w.topSale[1]} ก้อน)`);
     lines.push('', `คงเหลือในคลัง ${s.stockTotal.n + s.stockTotal.u} ก้อน (New ${s.stockTotal.n} · Used ${s.stockTotal.u})`);
     if (overdue.length || low.length) {
         lines.push('', 'ต้องติดตาม');
@@ -1433,7 +1442,7 @@ function renderExec() {
             <div class="legend"><span><i class="bar-new"></i>New</span><span><i class="bar-used"></i>Used</span></div>
             ${low.length ? `<div class="notice" style="margin-top:10px">${T('ใกล้หมด')}: ${low.map(g => LANG === 'en' ? `${esc(g.key)}: ${g.newQty} left${g.weeksLeft ? ` (about ${g.weeksLeft} weeks)` : ''}` : `${esc(g.key)} เหลือ ${g.newQty}${g.weeksLeft ? ` (พอขายราว ${g.weeksLeft} สัปดาห์)` : ''}`).join(' · ')}</div>` : ''}
         </div>
-        <div class="card"><h2>👤 ${T('ยอดขายรายเซลล์')} (${T('เดือนนี้')})</h2>
+        <div class="card"><h2>👤 ${T('ยอดขายตามผู้จัดทำ')} (${T('เดือนนี้')})</h2>
             ${s.bySaleMonth.length ? `<table class="data-table"><tbody>${s.bySaleMonth.map(([k, v]) => `<tr><td>${esc(U(k))}</td><td class="num"><b>${fmtN(v)}</b></td><td class="num muted">${Math.round(v / totalSaleMonth * 100)}%</td></tr>`).join('')}</tbody></table>` : T('<div class="empty">เดือนนี้ยังไม่มียอดขาย</div>')}
             <h2 style="margin-top:16px">🏢 ${T('ลูกค้าซื้อสูงสุด')} (${T('ปีนี้')})</h2>
             ${s.topCustomersYear.length ? `<table class="data-table"><tbody>${s.topCustomersYear.map(([k, v]) => `<tr><td>${esc(U(k))}</td><td class="num"><b>${fmtN(v)}</b></td></tr>`).join('')}</tbody></table>` : T('<div class="empty">ปีนี้ยังไม่มียอดขาย</div>')}
@@ -1473,11 +1482,11 @@ function renderManage() {
     <div class="ptitle"><h1>${T('ตั้งค่าระบบ')}</h1><small>${tf('เฉพาะ Admin', 'Admin only')}</small></div>
     <div class="mgrid">
         <div class="card"><h2>📦 ${T('รุ่นหิน')} <button class="more" onclick="addModel()">＋ ${T('เพิ่ม')}</button></h2>
-            ${groups.map((g, i) => `<div class="mrow"><span><b>${esc(g.key)}</b><small>${T('ใกล้หมดเมื่อ')} New ≤ ${g.minStock} · ${T('คงเหลือ')} ${g.newQty + g.usedQty}</small></span><span style="flex:none"><button class="link" onclick="editMinStock(${i})">${T('ตั้งเกณฑ์')}</button><button class="link danger" onclick="deleteModel(${i})">${T('ลบ')}</button></span></div>`).join('') || T('<div class="empty">ยังไม่มีรุ่น</div>')}</div>
-        <div class="card"><h2>👤 ${T('ทีมงาน / เซลล์')} <button class="more" onclick="addData('SALE')">＋ ${T('เพิ่ม')}</button></h2>
-            ${sales.map((s, i) => `<div class="mrow"><span>${esc(s)}${enNameHint(s)}</span><span style="flex:none"><button class="link" onclick="editEnName('SALE', ${i})">EN</button><button class="link danger" onclick="deleteData('SALE', ${i})">${T('ลบ')}</button></span></div>`).join('') || T('<div class="empty">ยังไม่มีรายชื่อ</div>')}</div>
+            ${groups.map((g, i) => `<div class="mrow"><span><b>${esc(g.key)}</b><small>${T('ใกล้หมดเมื่อ')} New ≤ ${g.minStock} · ${T('คงเหลือ')} ${g.newQty + g.usedQty}</small></span><span style="flex:none"><button class="link" onclick="renameModel(${i})">${T('แก้ชื่อ')}</button><button class="link" onclick="editMinStock(${i})">${T('ตั้งเกณฑ์')}</button><button class="link danger" onclick="deleteModel(${i})">${T('ลบ')}</button></span></div>`).join('') || T('<div class="empty">ยังไม่มีรุ่น</div>')}</div>
+        <div class="card"><h2>👤 ${T('ทีมงาน / ผู้จัดทำ')} <button class="more" onclick="addData('SALE')">＋ ${T('เพิ่ม')}</button></h2>
+            ${sales.map((s, i) => `<div class="mrow"><span>${esc(s)}${enNameHint(s)}</span><span style="flex:none"><button class="link" onclick="renameData('SALE', ${i})">${T('แก้ชื่อ')}</button><button class="link" onclick="editEnName('SALE', ${i})">EN</button><button class="link danger" onclick="deleteData('SALE', ${i})">${T('ลบ')}</button></span></div>`).join('') || T('<div class="empty">ยังไม่มีรายชื่อ</div>')}</div>
         <div class="card"><h2>🏢 ${T('ลูกค้า')} <span class="muted" style="font-size:12px;font-weight:600">${T('เพิ่มอัตโนมัติตอนบันทึก')}</span></h2>
-            ${customers.map((c, i) => `<div class="mrow"><span>${esc(c)}${enNameHint(c)}</span><span style="flex:none"><button class="link" onclick="editEnName('CUST', ${i})">EN</button><button class="link danger" onclick="deleteData('CUST', ${i})">${T('ลบ')}</button></span></div>`).join('') || T('<div class="empty">ยังไม่มีรายชื่อ</div>')}</div>
+            ${customers.map((c, i) => `<div class="mrow"><span>${esc(c)}${enNameHint(c)}</span><span style="flex:none"><button class="link" onclick="renameData('CUST', ${i})">${T('แก้ชื่อ')}</button><button class="link" onclick="editEnName('CUST', ${i})">EN</button><button class="link danger" onclick="deleteData('CUST', ${i})">${T('ลบ')}</button></span></div>`).join('') || T('<div class="empty">ยังไม่มีรายชื่อ</div>')}</div>
     </div>`;
 }
 function enNameHint(name) {
@@ -1675,6 +1684,126 @@ async function editEnName(type, i) {
         inputValidator: v => String(v || '').length > 200 ? T('ข้อความยาวเกินไป') : undefined
     });
     if (isConfirmed) await syncAction('setTranslation', { th: String(name).trim(), en: String(value || '').trim() }, T('บันทึกชื่อภาษาอังกฤษแล้ว'));
+}
+
+// ============================================================
+// v2.6.0 พิมพ์ใบเคลม / ใบรับสินค้า (A4 · 2 ฉบับ: ต้นฉบับลูกค้า + สำเนาบริษัท)
+//   เอกสารให้ลูกค้าเซ็นเป็นภาษาไทยเสมอ ไม่ว่าหน้าจอจะเป็นภาษาอะไร
+// ============================================================
+const PRINT_CO = {
+    name: 'บริษัท ซีทูเทค จำกัด',
+    address: '99/3 หมู่ 9 ต.วังไก่เถื่อน อ.หันคา จ.ชัยนาท 17130',
+    phones: 'โทร 063-929-1999 · 064-654-5636 · 081-680-6180 · www.c2tech.app',
+    logo: 'icons/c2tech-logo.png',
+};
+const TH_MONTHS_LONG = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+function thaiLongDate(d) { return d ? `${d.getDate()} ${TH_MONTHS_LONG[d.getMonth()]} ${d.getFullYear() + 543}` : '-'; }
+function canPrint(l) { const k = kindOf(l); return !!l && l.status !== 'CANCELLED' && ['sale', 'trial', 'claim'].includes(k); }
+function printBtnHtml(l) { return canPrint(l) ? `<button class="mini pr" onclick="printDoc('${esc(l.id)}')">🖨️ ${T('พิมพ์')}</button>` : ''; }
+
+function printDocHtml(l, copyLabel) {
+    const k = kindOf(l), isClaim = k === 'claim', isTrial = l.status === 'PENDING' || l.status === 'RETURNED' || l.typeLabel === 'ส่งทดลองใช้งาน';
+    const items = parseItems(l.item, l.typeLabel);
+    const total = items.reduce((a, it) => a + it.qty, 0);
+    const d = logDate(l), now = new Date();
+    const title = isClaim ? 'ใบเคลมสินค้า' : 'ใบรับสินค้า';
+    const en = isClaim ? 'CLAIM / REPLACEMENT FORM' : 'DELIVERY RECEIPT';
+    const tag = isClaim ? 'เปลี่ยนหินให้ลูกค้า' : (isTrial ? 'ส่งทดลองใช้งาน' : 'ขายสินค้า');
+    const status = isClaim
+        ? ({ WAITING_STOCK: 'รอของเข้า (ยังไม่ได้ส่งมอบ)', WAITING_CLAIM: 'ส่งมอบหินทดแทนแล้ว', CLAIMED: 'ปิดงานเคลมแล้ว' }[l.status] || '-')
+        : tag;
+    const stmt = isClaim
+        ? 'ข้าพเจ้าได้รับหินทดแทนตามรายการข้างต้นครบถ้วน ในสภาพเรียบร้อย และได้ส่งมอบหินที่เสียคืนให้บริษัทฯ ตามที่ระบุไว้'
+        : isTrial
+            ? 'ข้าพเจ้าได้รับสินค้าตามรายการข้างต้นครบถ้วน ในสภาพเรียบร้อย เพื่อทดลองใช้งาน และจะชำระค่าสินค้าหรือส่งคืนตามที่ตกลงกับบริษัทฯ'
+            : 'ข้าพเจ้าได้รับสินค้าตามรายการข้างต้นครบถ้วน ถูกต้อง และอยู่ในสภาพเรียบร้อย';
+    const rows = items.map((it, i) => `<tr><td class="c">${i + 1}</td><td>${esc(it.model)} #${esc(it.grit)}</td><td>${esc(it.condition)}</td><td class="n">${fmtN(it.qty)}</td></tr>`).join('');
+    const remark = String(l.remark || '').trim();
+    const sale = String(l.sale || '').trim();
+    return `<section class="pdoc">
+    <span class="p-copy">${copyLabel}</span>
+    <div class="p-hd"><div><img src="${PRINT_CO.logo}" alt="C2TECH"><div class="p-co"><b>${PRINT_CO.name}</b><br>${PRINT_CO.address}<br>${PRINT_CO.phones}</div></div>
+        <div class="p-doc"><h1>${title}</h1><div class="p-en">${en}</div><div class="p-no">เลขที่ <b>${esc(l.id)}</b></div><span class="p-tag">${tag}</span></div></div>
+    <div class="p-meta"><div><small>ลูกค้า / โรงสี</small>${esc(l.cust || '-')}</div><div><small>${isClaim ? 'วันที่เคลม' : 'วันที่ส่งของ'}</small>${thaiLongDate(d)}</div>
+        <div><small>ผู้จัดทำ</small>${esc(sale || '-')}</div><div><small>${isClaim ? 'สถานะ' : 'ประเภท'}</small>${status}</div></div>
+    <h3>${isClaim ? 'รายการหินที่เปลี่ยนให้' : 'รายการสินค้า'}</h3>
+    <table><tr><th class="c">#</th><th>รุ่น / เบอร์</th><th>สภาพ</th><th class="n">จำนวน (ก้อน)</th></tr>${rows}
+        <tr class="tot"><td></td><td>รวม</td><td></td><td class="n">${fmtN(total)}</td></tr></table>
+    <h3>${isClaim ? 'อาการเสีย / สาเหตุที่เคลม' : 'หมายเหตุ'}</h3><div class="p-box">${esc(remark) || '&nbsp;'}</div>
+    ${isClaim ? `<h3>หินเสียที่รับคืน</h3><div class="p-chk"><span>รับคืนครบตามจำนวน</span><span>รับคืนบางส่วน ______ ก้อน</span><span>ยังไม่ได้รับคืน</span></div>` : ''}
+    <div class="p-stmt">${stmt}</div>
+    <div class="p-sig"><div><div class="p-line"></div>( ................................................ )<b>ผู้รับสินค้า (ลูกค้า)</b><small>วันที่ ......../......../........</small></div>
+        <div><div class="p-line"></div>( ${esc(sale || '................................................')} )<b>${isClaim ? 'ผู้ส่งมอบ' : 'ผู้ส่งสินค้า'} (ผู้จัดทำ)</b><small>วันที่ ......../......../........</small></div></div>
+    <div class="p-ft"><span>พิมพ์จากระบบ RDS · Roller Diamond Stock</span><span>พิมพ์เมื่อ ${thaiShortTH(now)} ${thaiTimeTH(now)}</span></div>
+</section>`;
+}
+async function printDoc(id) {
+    const l = findLogById(id);
+    if (!l) return Swal.fire(T('ไม่พบรายการนี้'), T('กรุณารีเฟรชแล้วลองใหม่'), 'error');
+    if (!canPrint(l)) return;
+    let slot = document.getElementById('print-slot');
+    if (!slot) { slot = document.createElement('div'); slot.id = 'print-slot'; document.body.appendChild(slot); }
+    slot.innerHTML = printDocHtml(l, 'ต้นฉบับ · ลูกค้า') + printDocHtml(l, 'สำเนา · บริษัท');
+    // รอฟอนต์และโลโก้ให้พร้อมก่อนสั่งพิมพ์ (ไม่งั้นบางเครื่องพิมพ์ออกมาเป็นฟอนต์สำรอง/ไม่มีโลโก้)
+    const imgs = [...slot.querySelectorAll('img')].map(im => im.complete ? null : new Promise(r => { im.onload = im.onerror = r; })).filter(Boolean);
+    const fonts = document.fonts ? ['400', '600', '700'].map(w => document.fonts.load(`${w} 12px "Chakra Petch"`).catch(() => { })) : [];
+    await Promise.race([Promise.all([...imgs, ...fonts]), new Promise(r => setTimeout(r, 2500))]);
+    window.print();   // หน้าแอปถูกซ่อนตอนพิมพ์ด้วย @media print ใน style.css
+}
+
+// ============================================================
+// v2.6.0 แก้ชื่อ (Admin) — ผู้จัดทำ / ลูกค้า / รุ่นหิน · เปลี่ยนในประวัติเก่าทั้งหมดด้วย
+// ============================================================
+async function apiPost(body) {
+    const b = Object.assign({}, body); if (isAdmin && adminToken) b.token = adminToken;
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(b) });
+    return res.json();
+}
+async function renameData(type, i) {
+    const list = type === 'SALE' ? sales : customers;
+    const name = list[i]; if (name === undefined) return;
+    const what = type === 'SALE' ? tf('ผู้จัดทำ', 'preparer') : tf('ลูกค้า', 'customer');
+    const { value, isConfirmed } = await Swal.fire({
+        title: tf(`แก้ชื่อ${what}`, `Rename ${what}`), input: 'text', inputValue: name,
+        showCancelButton: true, confirmButtonColor: '#0e4a38', confirmButtonText: T('ถัดไป'), cancelButtonText: T('ยกเลิก'),
+        inputValidator: v => !String(v || '').trim() ? T('กรุณาระบุชื่อ') : String(v).trim() === String(name).trim() ? T('ชื่อใหม่เหมือนชื่อเดิม') : undefined
+    });
+    if (!isConfirmed) return;
+    const newName = String(value).trim();
+    await confirmRename('renameMeta', { type, oldName: name, newName }, `"${esc(name)}" → "${esc(newName)}"`);
+}
+async function renameModel(i) {
+    const g = groupStock()[i]; if (!g) return;
+    const { value: fV } = await Swal.fire({ title: tf('แก้ชื่อรุ่นหิน', 'Rename stone model'), showCancelButton: true, confirmButtonText: T('ถัดไป'), cancelButtonText: T('ยกเลิก'), confirmButtonColor: '#0e4a38',
+        html: T('<input id="sw-m" class="swal2-input" placeholder="รุ่น (เช่น R2)"><input id="sw-g" class="swal2-input" placeholder="เบอร์ (ตัวเลข เช่น 600)" inputmode="numeric">'),
+        didOpen: () => { document.getElementById('sw-m').value = g.model; document.getElementById('sw-g').value = g.grit; },
+        preConfirm: () => {
+            const m = document.getElementById('sw-m').value.trim(), gr = document.getElementById('sw-g').value.trim();
+            if (!m || !gr) return Swal.showValidationMessage(T('กรุณากรอกรุ่นและเบอร์'));
+            if (/[#,()|]/.test(m)) return Swal.showValidationMessage(T('ชื่อรุ่นห้ามมีเครื่องหมาย # , ( ) |'));
+            if (!/^\d+$/.test(gr)) return Swal.showValidationMessage(T('เบอร์ต้องเป็นตัวเลข'));
+            if (m === g.model && gr === g.grit) return Swal.showValidationMessage(T('ชื่อใหม่เหมือนชื่อเดิม'));
+            if (groupStock().some(x => x.model === m && x.grit === gr)) return Swal.showValidationMessage(tf(`มีรุ่น ${m} #${gr} อยู่แล้ว`, `Model ${m} #${gr} already exists`));
+            return [m, gr];
+        } });
+    if (!fV) return;
+    await confirmRename('renameModel', { model: g.model, grit: g.grit, newModel: fV[0], newGrit: fV[1] }, `${esc(g.key)} → ${esc(fV[0])} #${esc(fV[1])}`);
+}
+async function confirmRename(action, payload, label) {
+    Swal.fire({ title: T('กำลังตรวจสอบ...'), allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    let r;
+    try { r = await apiPost(Object.assign({ action, dryRun: true }, payload)); }
+    catch (e) { return Swal.fire(T('แจ้งเตือน'), T('ไม่สามารถเชื่อมต่อได้'), 'error'); }
+    if (r.code === 'unauthorized') { setAdminUI(false); renderAll(); return Swal.fire(T('สิทธิ์ Admin หมดอายุ'), T('กรุณากดรูปกุญแจเพื่อเข้าสู่ระบบ Admin ใหม่ แล้วทำรายการอีกครั้ง'), 'warning'); }
+    if (r.status !== 'success') return Swal.fire(T('ทำรายการไม่สำเร็จ'), TS(r.message) || T('เกิดข้อผิดพลาด'), 'error');
+    const html = `<div style="font-size:15px"><b>${label}</b></div>
+        <div style="margin-top:10px">${tf(`จะเปลี่ยนชื่อในประวัติ <b>${fmtN(r.count)}</b> รายการ`, `This will update <b>${fmtN(r.count)}</b> history ${r.count === 1 ? 'entry' : 'entries'}`)}</div>
+        ${r.merge ? `<div class="notice" style="margin-top:10px;text-align:left">${tf('ชื่อใหม่มีอยู่ในรายชื่อแล้ว — ระบบจะรวมเป็นชื่อเดียวกัน และลบชื่อเดิมออกจากรายชื่อ', 'The new name already exists — both will be merged into one and the old name removed from the list')}</div>` : ''}
+        ${action === 'renameModel' ? `<div style="margin-top:8px;font-size:13px;color:#6b6b63">${tf('จำนวนสต็อกคงเหลือย้ายไปอยู่กับชื่อใหม่', 'Stock on hand moves to the new name')}</div>` : ''}`;
+    const ok = await Swal.fire({ title: T('ยืนยันแก้ชื่อ?'), html, icon: 'question', showCancelButton: true, confirmButtonColor: '#0e4a38', confirmButtonText: T('ยืนยัน'), cancelButtonText: T('ยกเลิก'), reverseButtons: true });
+    if (!ok.isConfirmed) return;
+    if (action === 'renameModel') rec.cart = {};
+    await syncAction(action, payload, T('แก้ชื่อเรียบร้อย'));
 }
 
 // ปิดการซูมบนมือถือ — iPhone ไม่สนใจ user-scalable=no จึงกันการถ่างนิ้วตรงนี้ ส่วนแตะสองครั้งปิดด้วย touch-action ใน CSS
