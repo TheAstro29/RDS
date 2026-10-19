@@ -406,3 +406,20 @@ body.rec-mode .bnav { display: none; }
 .p-sig b { display: block; font-weight: 600; margin-top: 1mm; }
 .p-sig small { color: #6b6b63; }
 .p-ft { margin-top: 7mm; padding-top: 2.5mm; border-top: .6pt solid var(--ps2); display: flex; justify-content: space-between; font-size: 8pt; color: #6b6b63; }
+
+/* v2.6.1 แท็บพิมพ์ (เปิดจาก Google Sites) — เอกสารแสดงบนจอ */
+body.print-mode { background: #e9ece9; }
+body.print-mode > *:not(#print-slot):not(#print-bar) { display: none !important; }
+body.print-mode #print-slot { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 16px 16px 40px; overflow-x: auto; }
+body.print-mode .pdoc { box-shadow: 0 4px 18px rgba(0, 0, 0, .14); flex: none; }
+#print-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 16px; background: var(--primary); color: #fff; font-size: 13px; }
+#print-bar span { flex: 1; min-width: 160px; opacity: .85; }
+#print-bar button { height: 38px; padding: 0 16px; border: 0; border-radius: 10px; background: #fff; color: var(--primary); font: inherit; font-weight: 800; }
+#print-bar button.ghost { background: transparent; color: #fff; border: 1px solid rgba(255, 255, 255, .4); }
+@media print {
+    #print-bar { display: none !important; }
+    body.print-mode #print-slot { display: block !important; padding: 0; gap: 0; }
+    body.print-mode .pdoc { box-shadow: none; }
+}
+body.print-mode .pdoc { zoom: var(--pz, 1); }
+@media print { body.print-mode .pdoc { zoom: 1 !important; } }

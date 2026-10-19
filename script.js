@@ -1,5 +1,5 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzJ8HJ1FlVckHAwJxkGJbySBbDfrtcEoxYR9tbxSBqhYv3smR4U1qqQC4mwnA57EF7Jvw/exec";
-const APP_VERSION = '2.6.0';
+const APP_VERSION = '2.6.1';
 const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับ Google Script
 const ADMIN_SESSION_KEY = 'rds_admin_session';
 const CACHE_KEY = 'rds_cache';
@@ -19,6 +19,10 @@ let currentPage = 'exec';
 const LANG_KEY = 'rds_lang';
 const LANG = (() => { try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'th'; } catch (e) { return 'th'; } })();
 const EN_DICT = {
+    "เปิดหน้าพิมพ์ไม่ได้": "Could not open the print page",
+    "เบราว์เซอร์บล็อกหน้าต่างใหม่ — กรุณาอนุญาตป๊อปอัปสำหรับเว็บนี้ แล้วกดพิมพ์อีกครั้ง": "The browser blocked the new window \u2014 allow pop-ups for this site and tap Print again",
+    "ถ้าหน้าต่างพิมพ์ไม่ขึ้นเอง กดปุ่มพิมพ์ หรือ Ctrl+P": "If the print dialog doesn't open, tap Print or press Ctrl+P",
+    "ลิงก์พิมพ์ไม่ถูกต้อง": "Invalid print link",
     "พิมพ์": "Print",
     "ถัดไป": "Next",
     "กรุณาระบุชื่อ": "Please enter a name",
@@ -599,6 +603,7 @@ function toast(text, icon) {
 // ============================================================
 function init() {
     applyStaticLang();
+    if (startPrintMode()) return;
     try {
         const cached = localStorage.getItem(CACHE_KEY);
         if (cached) { applyData(JSON.parse(cached)); hideLoading(); renderAll(); }
@@ -1737,10 +1742,28 @@ function printDocHtml(l, copyLabel) {
     <div class="p-ft"><span>พิมพ์จากระบบ RDS · Roller Diamond Stock</span><span>พิมพ์เมื่อ ${thaiShortTH(now)} ${thaiTimeTH(now)}</span></div>
 </section>`;
 }
+// แอปที่ฝังใน Google Sites อยู่ใน iframe แบบ sandbox → เบราว์เซอร์ไม่ยอมให้สั่งพิมพ์ (print() ถูกบล็อก)
+// จึงเปิดเอกสารในแท็บใหม่ (หน้าเดียวกันของแอป + #print=ข้อมูลรายการ) แล้วสั่งพิมพ์จากแท็บนั้นแทน
+const IN_FRAME = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+function printPayload(l) {
+    const o = {};
+    ['id', 'date', 'direction', 'typeLabel', 'item', 'sale', 'cust', 'qty', 'status', 'remark', 'createdAt', 'closedAt'].forEach(k => { if (l[k] !== undefined && l[k] !== '') o[k] = l[k]; });
+    return o;
+}
 async function printDoc(id) {
     const l = findLogById(id);
     if (!l) return Swal.fire(T('ไม่พบรายการนี้'), T('กรุณารีเฟรชแล้วลองใหม่'), 'error');
     if (!canPrint(l)) return;
+    if (IN_FRAME) {
+        const url = location.origin + location.pathname + '#print=' + encodeURIComponent(JSON.stringify(printPayload(l)));
+        const w = window.open(url, '_blank');
+        if (!w) Swal.fire(T('เปิดหน้าพิมพ์ไม่ได้'), T('เบราว์เซอร์บล็อกหน้าต่างใหม่ — กรุณาอนุญาตป๊อปอัปสำหรับเว็บนี้ แล้วกดพิมพ์อีกครั้ง'), 'warning');
+        return;
+    }
+    await renderPrintSlot(l);
+    window.print();   // หน้าแอปถูกซ่อนตอนพิมพ์ด้วย @media print ใน style.css
+}
+async function renderPrintSlot(l) {
     let slot = document.getElementById('print-slot');
     if (!slot) { slot = document.createElement('div'); slot.id = 'print-slot'; document.body.appendChild(slot); }
     slot.innerHTML = printDocHtml(l, 'ต้นฉบับ · ลูกค้า') + printDocHtml(l, 'สำเนา · บริษัท');
@@ -1748,7 +1771,25 @@ async function printDoc(id) {
     const imgs = [...slot.querySelectorAll('img')].map(im => im.complete ? null : new Promise(r => { im.onload = im.onerror = r; })).filter(Boolean);
     const fonts = document.fonts ? ['400', '600', '700'].map(w => document.fonts.load(`${w} 12px "Chakra Petch"`).catch(() => { })) : [];
     await Promise.race([Promise.all([...imgs, ...fonts]), new Promise(r => setTimeout(r, 2500))]);
-    window.print();   // หน้าแอปถูกซ่อนตอนพิมพ์ด้วย @media print ใน style.css
+}
+/** แท็บพิมพ์ (เปิดจาก Google Sites) — แสดงเอกสารบนจอพร้อมปุ่มพิมพ์ ไม่โหลดแอปส่วนอื่น */
+function startPrintMode() {
+    const m = location.hash.match(/^#print=(.+)$/);
+    if (!m) return false;
+    let l = null;
+    try { l = JSON.parse(decodeURIComponent(m[1])); } catch (e) { }
+    document.body.classList.add('print-mode');
+    const ld = document.getElementById('loading'); if (ld) ld.style.display = 'none';
+    const bar = document.createElement('div'); bar.id = 'print-bar';
+    bar.innerHTML = l ? `<b>${l.id ? esc(l.id) : ''}</b><span>${T('ถ้าหน้าต่างพิมพ์ไม่ขึ้นเอง กดปุ่มพิมพ์ หรือ Ctrl+P')}</span><button onclick="window.print()">🖨️ ${T('พิมพ์')}</button><button class="ghost" onclick="window.close()">${T('ปิด')}</button>`
+        : `<span>${T('ลิงก์พิมพ์ไม่ถูกต้อง')}</span>`;
+    document.body.appendChild(bar);
+    if (!l) return true;
+    // ย่อเอกสาร A4 ให้พอดีจอมือถือ (เฉพาะบนจอ — ตอนพิมพ์กลับเป็นขนาดจริง)
+    const fit = () => document.body.style.setProperty('--pz', Math.min(1, (window.innerWidth - 32) / (210 * 96 / 25.4)).toFixed(3));
+    fit(); window.addEventListener('resize', fit);
+    renderPrintSlot(l).then(() => setTimeout(() => { try { window.print(); } catch (e) { } }, 300));
+    return true;
 }
 
 // ============================================================
