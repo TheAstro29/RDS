@@ -1,5 +1,5 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzJ8HJ1FlVckHAwJxkGJbySBbDfrtcEoxYR9tbxSBqhYv3smR4U1qqQC4mwnA57EF7Jvw/exec";
-const APP_VERSION = '2.7.0';
+const APP_VERSION = '2.7.1';
 const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับ Google Script
 const ADMIN_SESSION_KEY = 'rds_admin_session';
 const CACHE_KEY = 'rds_cache';
@@ -19,6 +19,11 @@ let currentPage = 'exec';
 const LANG_KEY = 'rds_lang';
 const LANG = (() => { try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'th'; } catch (e) { return 'th'; } })();
 const EN_DICT = {
+    "คืนสต็อก": "Stock returned",
+    "หักสต็อกออก": "Stock removed",
+    "ไม่มีผลต่อสต็อก": "No stock change",
+    "คืนสต็อกจาก": "Returned to stock from",
+    "หักสต็อกจาก": "Removed from stock from",
     "รูปประกอบการเคลม": "Claim photos",
     "รูป": "photo",
     "ลบรูป": "Delete photo",
@@ -819,7 +824,7 @@ function renderDash() {
     const m = summary ? summary.month : null;
     const pct = m && m.lastMonth > 0 ? Math.round((m.thisMonth - m.lastMonth) / m.lastMonth * 100) : null;
     const nTotal = groups.reduce((a, g) => a + g.newQty, 0), uTotal = groups.reduce((a, g) => a + g.usedQty, 0);
-    const todayLogs = allLogs.filter(l => sameDay(logDate(l), now)).slice().reverse();
+    const todayEvents = stockEvents(allLogs, l => Number(l.qty || 0)).filter(ev => sameDay(ev.d, now));
     const hour = now.getHours();
     const greet = hour < 12 ? T('สวัสดีตอนเช้า') : hour < 17 ? T('สวัสดีตอนบ่าย') : T('สวัสดีตอนเย็น');
 
@@ -854,8 +859,9 @@ function renderDash() {
     <div class="grid2">
         <div class="card"><h2>🔔 ${T('ต้องดำเนินการ')}</h2>${todo.join('') || T('<div class="empty">ไม่มีเรื่องค้าง</div>')}</div>
         <div class="card"><h2>📅 ${T('ความเคลื่อนไหววันนี้')} <button class="more" onclick="histState.period='today';showPage('hist')">${T('ดูทั้งหมด')} ›</button></h2>
-            ${todayLogs.length ? todayLogs.slice(0, 8).map(l => {
-        const q = qtySign(l), k = kindOf(l);
+            ${todayEvents.length ? todayEvents.slice(0, 8).map(ev => {
+        if (ev.cancel) return cancelEventRow(ev.l, ev.qty, false);
+        const l = ev.l, q = origSign(l), k = l.status === 'CANCELLED' ? 'cancel' : kindOf(l);
         return `<div class="list-row"><div class="avatar a-${k}">${KIND_ICON[k]}</div><div class="lr-main"><b>${esc(U(l.cust))}</b><small>${esc(itemsText(l))}</small></div><div class="lr-end"><b class="${q.cls}">${q.s}${fmtN(l.qty)}</b><small>${thaiTime(logDate(l))}</small></div></div>`;
     }).join('') : T('<div class="empty">วันนี้ยังไม่มีรายการ</div>')}
         </div>
@@ -953,10 +959,7 @@ async function openModelHistory(idx) {
         </div>
         ${topBuyers.length ? `<div class="card"><h2>🏢 ${T('ลูกค้าที่ซื้อรุ่นนี้')} (${T('ปีนี้')})</h2><table class="data-table"><tbody>${topBuyers.map(([c, q]) => `<tr><td>${esc(U(c))}</td><td class="num"><b>${fmtN(q)}</b> ${T('ก้อน')}</td></tr>`).join('')}</tbody></table></div>` : ''}
         <div class="card"><h2>🕒 ${T('ความเคลื่อนไหวล่าสุด')}</h2>
-            ${logs.slice().reverse().slice(0, 20).map(l => {
-        const q = qtySign(l), k = kindOf(l), d = logDate(l);
-        return `<div class="list-row"><div class="avatar a-${k}">${KIND_ICON[k]}</div><div class="lr-main"><b>${esc(U(l.cust))}</b><small>${statusPill(l)} ${thaiShort(d)}</small></div><div class="lr-end"><b class="${q.cls}">${q.s}${fmtN(qtyOf(l))}</b><small>${esc(U(l.sale || ''))}</small></div></div>`;
-    }).join('') || T('<div class="empty">ยังไม่มีประวัติ</div>')}
+            ${stockEvents(logs, qtyOf).slice(0, 20).map(ev => ev.cancel ? cancelEventRow(ev.l, ev.qty, true) : origEventRow(ev.l, ev.qty)).join('') || T('<div class="empty">ยังไม่มีประวัติ</div>')}
         </div>`;
 }
 function escClose(e) { if (e.key === 'Escape') closeModal(); }
@@ -971,8 +974,58 @@ const isNoStock = l => !!(l && l.stockMode === 'NOSTOCK');
 const KIND_FILTERS = [['all', T('ทั้งหมด'), ''], ['sale', T('ขาย'), 'var(--red)'], ['in', T('รับเข้า'), 'var(--accent)'], ['trial', T('ทดลอง'), 'var(--orange)'],
     ['claim', T('เคลม'), 'var(--purple)'], ['open', T('ค้างดำเนินการ'), 'var(--rose)'], ['cancel', T('ยกเลิก'), '#9aa39f'], ['bd', T('📅 ย้อนหลัง'), '']];
 
+// ============================================================
+// v2.7.1 การยกเลิกรายการ — การ์ดย้ายไปอยู่วันที่ยกเลิก + บรรทัด "คืนสต็อก" ใน log สต็อก
+// ============================================================
+function cancelDate(l) { if (!l || l.status !== 'CANCELLED' || !l.cancelledAt) return null; const d = new Date(l.cancelledAt); return isNaN(d) ? null : d; }
+/** วันที่ที่ใช้เรียง/จัดกลุ่มในหน้าประวัติ: รายการที่ยกเลิกใช้วันที่ยกเลิก */
+function histDate(l) { return cancelDate(l) || logDate(l); }
+/** ผลต่อสต็อกตอนยกเลิก: ขาย/ทดลอง/เคลมที่ตัดสต็อกแล้ว → คืน (+) · รับเข้า → หักออก (−) · ไม่ได้ตัดสต็อก → ไม่มีผล */
+function cancelEffect(l) { return l.direction === 'OUT' ? { s: '+', cls: 'q-in' } : l.direction === 'IN' ? { s: '−', cls: 'q-out' } : null; }
+function origKindLabel(l) {
+    const t = String(l.typeLabel || '');
+    if (t === 'ขายสินค้า') return T('ขาย');
+    if (t === 'ส่งทดลองใช้งาน') return T('ทดลอง');
+    if (t.indexOf('เคลม') === 0) return T('เคลม');
+    if (l.direction === 'IN') return T('รับเข้า');
+    return T(t);
+}
+function origIcon(l) { const t = String(l.typeLabel || ''); return t === 'ขายสินค้า' ? '💰' : t === 'ส่งทดลองใช้งาน' ? '🧪' : t.indexOf('เคลม') === 0 ? '🛡️' : l.direction === 'IN' ? '📥' : '📄'; }
+function cancelTimelineHtml(l) {
+    const d = logDate(l), c = cancelDate(l), e = cancelEffect(l);
+    const fx = e ? `${e.s === '+' ? T('คืนสต็อก') : T('หักสต็อกออก')} ${e.s}${fmtN(l.qty)} ${T('ก้อน')}` : T('ไม่มีผลต่อสต็อก');
+    return `<div class="ctl"><div>${origIcon(l)} ${origKindLabel(l)} · <b>${d ? thaiShort(d) + ' ' + thaiTime(d) : esc(l.date)}</b> · ${T('ผู้จัดทำ')} ${esc(U(l.sale) || '-')}</div>
+        <div class="x">🚫 ${T('ยกเลิก')} · <b>${c ? thaiShort(c) + ' ' + thaiTime(c) : '-'}</b> · ${fx}</div></div>`;
+}
+/** รายการเคลื่อนไหวสต็อก: รายการเดิม + บรรทัด "ยกเลิก/คืนสต็อก" ตามวันที่ยกเลิก — เรียงใหม่สุดก่อน */
+function stockEvents(logs, qtyOf) {
+    const out = [];
+    logs.forEach((l, i) => {
+        out.push({ l, d: logDate(l), qty: qtyOf(l), i, cancel: false });
+        const c = cancelDate(l);
+        if (c) out.push({ l, d: c, qty: qtyOf(l), i, cancel: true });
+    });
+    return out.sort((a, b) => ((b.d ? b.d.getTime() : 0) - (a.d ? a.d.getTime() : 0)) || (b.i - a.i) || (b.cancel - a.cancel));
+}
+/** เครื่องหมายของรายการเดิม (แม้ถูกยกเลิกแล้ว ก็แสดงว่าตอนนั้นตัด/เพิ่มสต็อก) */
+function origSign(l) { return l.status !== 'CANCELLED' ? qtySign(l) : l.direction === 'OUT' ? { s: '−', cls: 'q-out' } : l.direction === 'IN' ? { s: '+', cls: 'q-in' } : { s: '', cls: 'q-none' }; }
+function origEventRow(l, qty) {
+    const k = kindOf(l), d = logDate(l), cancelled = l.status === 'CANCELLED';
+    const q = origSign(l);
+    const pill = cancelled ? `<span class="pill p-cancel">${origKindLabel(l)} · ${T('ยกเลิกแล้ว')}</span>` : statusPill(l);
+    return `<div class="list-row${cancelled ? ' ev-old' : ''}"><div class="avatar a-${cancelled ? 'cancel' : k}">${cancelled ? origIcon(l) : KIND_ICON[k]}</div><div class="lr-main"><b>${esc(U(l.cust))}</b><small>${pill} ${thaiShort(d)} ${d ? thaiTime(d) : ''}</small></div><div class="lr-end"><b class="${q.cls}">${q.s}${fmtN(qty)}</b><small>${esc(U(l.sale || ''))}</small></div></div>`;
+}
+function cancelEventRow(l, qty, withRef) {
+    const c = cancelDate(l), e = cancelEffect(l), od = logDate(l);
+    const what = tf(`ยกเลิกรายการ${origKindLabel(l)}`, `Cancelled ${origKindLabel(l).toLowerCase()}`);
+    const sub = withRef
+        ? `${e ? (e.s === '+' ? T('คืนสต็อกจาก') : T('หักสต็อกจาก')) : T('ไม่มีผลต่อสต็อก') + ' ·'} ${esc(l.id)}${l.cancelReason ? ' · ' + esc(U(l.cancelReason)) : ''}`
+        : `${what} (${od ? thaiShort(od) : '-'}) · ${e ? (e.s === '+' ? T('คืนสต็อก') : T('หักสต็อกออก')) : T('ไม่มีผลต่อสต็อก')}`;
+    return `<div class="list-row ev-cancel"><div class="avatar a-cancel">↩️</div><div class="lr-main"><b>${esc(U(l.cust))}</b>${withRef ? `<small><span class="pill p-cancel">${what}</span> ${thaiShort(c)} ${thaiTime(c)}</small>` : ''}<small>${sub}</small></div>
+        <div class="lr-end">${e ? `<b class="${e.cls}">${e.s}${fmtN(qty)}</b>` : '<b class="q-none">0</b>'}<small>${withRef ? 'Admin' : thaiTime(c)}</small></div></div>`;
+}
 function histBaseFilter(l) {
-    const st = histState, d = logDate(l), now = new Date();
+    const st = histState, d = histDate(l), now = new Date();
     if (st.period === 'today' && !sameDay(d, now)) return false;
     if (st.period === '7' && !(d && daysSince(d) <= 6)) return false;
     if (st.period === 'month' && !(d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear())) return false;
@@ -999,14 +1052,14 @@ function renderHist() {
     const st = histState;
     const base = allLogs.filter(histBaseFilter);
     // เรียงใหม่สุดก่อนตามวันที่จริง (แถวในชีตอาจไม่เรียงตามเวลา) — วันเดียวกันใช้ลำดับแถวเดิม
-    const list = base.filter(l => kindMatch(l, st.kind)).map((l, i) => [l, i, (logDate(l) || new Date(0)).getTime()])
+    const list = base.filter(l => kindMatch(l, st.kind)).map((l, i) => [l, i, (histDate(l) || new Date(0)).getTime()])
         .sort((a, b) => (b[2] - a[2]) || (b[1] - a[1])).map(x => x[0]);
     const total = list.filter(l => l.status !== 'CANCELLED').reduce((a, l) => a + Number(l.qty || 0), 0);
     const sellers = [...new Set(allLogs.map(l => l.sale).filter(Boolean).concat(sales))];
     const shown = list.slice(0, st.limit);
     const groups = [];
     shown.forEach(l => {
-        const d = logDate(l); const key = d ? startOfDay(d).getTime() : 0;
+        const d = histDate(l); const key = d ? startOfDay(d).getTime() : 0;
         let g = groups.find(x => x.key === key); if (!g) { g = { key, d, rows: [] }; groups.push(g); }
         g.rows.push(l);
     });
@@ -1072,11 +1125,11 @@ function histRowHtml(l) {
         <div class="avatar a-${k}">${KIND_ICON[k]}</div>
         <div><div class="head">${statusPill(l)}${bdPillsHtml(l)}<b>${esc(U(l.cust))}</b></div>
             <div class="items">${esc(itemsText(l))}</div>
-            <div class="meta">${d ? thaiTime(d) : esc(l.date)} · ${T('ผู้จัดทำ')} ${esc(U(l.sale) || '-')} · <span class="mono">${id}</span></div>
+            ${l.status === 'CANCELLED' ? cancelTimelineHtml(l) + `<div class="meta"><span class="mono">${id}</span></div>` : `<div class="meta">${d ? thaiTime(d) : esc(l.date)} · ${T('ผู้จัดทำ')} ${esc(U(l.sale) || '-')} · <span class="mono">${id}</span></div>`}
             ${bdNoteHtml(l)}
             ${l.remark ? `<div class="note">📝 ${esc(U(l.remark))}</div>` : ''}
             ${photoStripHtml(l)}
-            ${l.status === 'CANCELLED' ? `<div class="note cancel">${T('ยกเลิกแล้ว', 'r')}${l.cancelReason ? ' · ' + esc(U(l.cancelReason)) : ''}</div>` : ''}
+            ${l.status === 'CANCELLED' && l.cancelReason ? `<div class="note cancel">${T('เหตุผล')}: ${esc(U(l.cancelReason))}</div>` : ''}
             ${acts.length ? `<div class="acts">${acts.join('')}</div>` : ''}
         </div>
         <b class="q ${q.cls}">${q.s}${fmtN(l.qty)}</b>

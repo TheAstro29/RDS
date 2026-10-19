@@ -456,3 +456,16 @@ body.print-mode .pdoc { zoom: var(--pz, 1); }
 .pv-acts { display: flex; gap: 8px; }
 .pv-acts a, .pv-acts button { color: #fff; text-decoration: none; background: rgba(255, 255, 255, .15); border: 0; padding: 8px 12px; border-radius: 10px; font: inherit; font-weight: 700; }
 @media print { .pv { display: none !important; } }
+
+/* ===== v2.7.1 ยกเลิกรายการ: ไทม์ไลน์ + บรรทัดคืนสต็อก ===== */
+.ctl { margin-top: 6px; border-left: 2px solid var(--line); padding-left: 10px; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--ink); }
+.ctl > div { position: relative; }
+.ctl > div::before { content: ''; position: absolute; left: -15px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: #c9c3b2; }
+.ctl > div.x::before { background: var(--red); }
+.ctl b { font-weight: 700; }
+.ev-old .lr-main > b { color: var(--sub); text-decoration: line-through; }
+.ev-cancel { background: #fff8ec; border-radius: 12px; padding-left: 6px; padding-right: 6px; margin: 0 -6px; }
+.hrow.cancelled { opacity: 1; }
+.hrow.cancelled .items { text-decoration: line-through; color: var(--sub); }
+.hrow.cancelled > .q { text-decoration: line-through; }
+.hrow .note.cancel { color: #9b3131; background: #fdf0f0; }
