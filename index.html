@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>RDS by C2TECH v2.4.0</title>
+    <title>RDS by C2TECH v2.5.0</title>
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#0e4a38" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -24,30 +24,31 @@
         <div class="loading-content">
             <div class="logo big">RDS</div>
             <b>Roller Diamond Stock</b>
-            <p>by C2TECH · กำลังโหลดข้อมูล...</p>
+            <p>by C2TECH · <span data-en="Loading...">กำลังโหลดข้อมูล...</span></p>
         </div>
     </div>
 
     <header class="top">
         <div class="logo">RDS</div>
-        <div class="t"><b>RDS <span class="ver">v2.4.0</span></b><small>Roller Diamond Stock · by C2TECH</small></div>
+        <div class="t"><b>RDS <span class="ver">v2.5.0</span></b><small>Roller Diamond Stock · by C2TECH</small></div>
         <span class="admin-chip" id="admin-chip" hidden>Admin</span>
-        <button class="ibtn hdr-gear" id="hdr-manage" onclick="showPage('manage')" aria-label="ตั้งค่าระบบ" hidden>⚙️</button>
-        <button class="ibtn" id="admin-btn" onclick="toggleAdmin()" aria-label="เข้าสู่ระบบ Admin"></button>
-        <button class="ibtn" id="main-refresh" onclick="fetchData()" aria-label="รีเฟรชข้อมูล">
+        <button class="ibtn hdr-gear" id="hdr-manage" onclick="showPage('manage')" aria-label="ตั้งค่าระบบ" data-en-label="Settings" hidden>⚙️</button>
+        <button class="ibtn lang-btn" id="lang-btn" onclick="setLang(LANG === 'en' ? 'th' : 'en')" aria-label="Switch to English">EN</button>
+        <button class="ibtn" id="admin-btn" onclick="toggleAdmin()" aria-label="เข้าสู่ระบบ Admin" data-en-label="Admin sign-in"></button>
+        <button class="ibtn" id="main-refresh" onclick="fetchData()" aria-label="รีเฟรชข้อมูล" data-en-label="Refresh data">
             <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" /></svg>
         </button>
     </header>
 
     <div class="shell">
         <aside class="side">
-            <button class="newbtn" onclick="openSheet()">＋ บันทึกรายการ</button>
+            <button class="newbtn" onclick="openSheet()" data-en="＋ Record entry">＋ บันทึกรายการ</button>
             <button class="nitem on" data-nav="exec" onclick="showPage('exec')">📈 Dashboard</button>
-            <button class="nitem" data-nav="stock" onclick="showPage('stock')">📦 คลังสินค้า</button>
-            <button class="nitem" data-nav="hist" onclick="showPage('hist')">🕒 ประวัติ</button>
-            <button class="nitem" data-nav="dash" onclick="showPage('dash')">📊 ภาพรวม</button>
-            <button class="nitem" data-nav="manage" id="side-manage" onclick="showPage('manage')" hidden>⚙️ ตั้งค่าระบบ</button>
-            <div class="foot">RDS by C2TECH · v2.4.0</div>
+            <button class="nitem" data-nav="stock" onclick="showPage('stock')" data-en="📦 Inventory">📦 คลังสินค้า</button>
+            <button class="nitem" data-nav="hist" onclick="showPage('hist')" data-en="🕒 History">🕒 ประวัติ</button>
+            <button class="nitem" data-nav="dash" onclick="showPage('dash')" data-en="📊 Overview">📊 ภาพรวม</button>
+            <button class="nitem" data-nav="manage" id="side-manage" onclick="showPage('manage')" data-en="⚙️ Settings" hidden>⚙️ ตั้งค่าระบบ</button>
+            <div class="foot">RDS by C2TECH · v2.5.0</div>
         </aside>
 
         <main>
@@ -60,24 +61,24 @@
         </main>
     </div>
 
-    <nav class="bnav" aria-label="เมนูหลัก">
+    <nav class="bnav" aria-label="เมนูหลัก" data-en-label="Main menu">
         <button class="on" data-nav="exec" onclick="showPage('exec')"><span class="i">📈</span>Dashboard</button>
-        <button data-nav="stock" onclick="showPage('stock')"><span class="i">📦</span>คลัง</button>
-        <div><div class="fab" role="button" tabindex="0" aria-label="บันทึกรายการ" onclick="openSheet()">＋</div></div>
-        <button data-nav="hist" onclick="showPage('hist')"><span class="i">🕒</span>ประวัติ</button>
-        <button data-nav="dash" onclick="showPage('dash')"><span class="i">📊</span>ภาพรวม</button>
+        <button data-nav="stock" onclick="showPage('stock')"><span class="i">📦</span><span data-en="Stock">คลัง</span></button>
+        <div><div class="fab" role="button" tabindex="0" aria-label="บันทึกรายการ" data-en-label="Record entry" onclick="openSheet()">＋</div></div>
+        <button data-nav="hist" onclick="showPage('hist')"><span class="i">🕒</span><span data-en="History">ประวัติ</span></button>
+        <button data-nav="dash" onclick="showPage('dash')"><span class="i">📊</span><span data-en="Overview">ภาพรวม</span></button>
     </nav>
     <div id="cartbar-slot"></div>
 
     <div class="sheet-back" id="sheet-back" hidden onclick="closeSheet()"></div>
-    <div class="sheet" id="sheet" role="dialog" aria-label="บันทึกรายการ">
+    <div class="sheet" id="sheet" role="dialog" aria-label="บันทึกรายการ" data-en-label="Record entry">
         <div class="grab"></div>
-        <h3>บันทึกรายการ</h3>
+        <h3 data-en="Record entry">บันทึกรายการ</h3>
         <div class="act-grid">
-            <button class="act" onclick="startRec('sale')"><div class="i a-sale">💰</div><b>ขายสินค้า</b><small>ตัดสต็อกทันที</small></button>
-            <button class="act" onclick="startRec('trial')"><div class="i a-trial">🧪</div><b>ส่งทดลอง</b><small>ปิดเป็นขาย/รับคืนทีหลัง</small></button>
-            <button class="act" onclick="startRec('in')"><div class="i a-in">📥</div><b>รับเข้า</b><small>หินใหม่ หรือรับคืน Used</small></button>
-            <button class="act" onclick="startRec('claim')"><div class="i a-claim">🛡️</div><b>เคลมสินค้า</b><small>เปลี่ยนหินให้ลูกค้า</small></button>
+            <button class="act" onclick="startRec('sale')"><div class="i a-sale">💰</div><b data-en="Sale">ขายสินค้า</b><small data-en="Deducts stock now">ตัดสต็อกทันที</small></button>
+            <button class="act" onclick="startRec('trial')"><div class="i a-trial">🧪</div><b data-en="Send trial">ส่งทดลอง</b><small data-en="Close as sale / return later">ปิดเป็นขาย/รับคืนทีหลัง</small></button>
+            <button class="act" onclick="startRec('in')"><div class="i a-in">📥</div><b data-en="Receive">รับเข้า</b><small data-en="New stones or Used returns">หินใหม่ หรือรับคืน Used</small></button>
+            <button class="act" onclick="startRec('claim')"><div class="i a-claim">🛡️</div><b data-en="Claim">เคลมสินค้า</b><small data-en="Replace stones for a customer">เปลี่ยนหินให้ลูกค้า</small></button>
         </div>
     </div>
     <div id="modal-slot"></div>

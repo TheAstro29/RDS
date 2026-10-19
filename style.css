@@ -339,3 +339,21 @@ body.rec-mode .bnav { display: none; }
 .cart-bd { margin-top: 8px; font-size: 12.5px; background: #fff3d6; color: #7a4a06; border-radius: var(--r-sm); padding: 8px 10px; line-height: 1.5; overflow-wrap: anywhere; }
 .trial .tags { display: flex; gap: 5px; flex-wrap: wrap; margin: 3px 0 1px; }
 .swal2-radio { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+/* ===== v2.5.0 ภาษา + ข้อความถึง Supplier ===== */
+.lang-btn { font-family: inherit; font-size: 13px; font-weight: 800; letter-spacing: .02em; }
+.sup-title { align-items: center; }
+.sup-btn { flex: none; }
+.sup-modal { gap: 10px; }
+.sup-tabs { padding-bottom: 2px; }
+.sup-card h2 { margin: 0 0 4px; font-size: 15px; }
+.sup-rows { display: flex; flex-direction: column; margin-top: 8px; }
+.sup-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.sup-row:last-child { border-bottom: 0; }
+.sup-row span { min-width: 0; }
+.sup-row small { display: block; color: var(--sub); font-size: 12px; }
+.sup-row.low b { color: #a35f12; }
+.sup-row input { width: 84px; height: 40px; border: 1px solid var(--line); border-radius: 10px; text-align: center; font: inherit; font-weight: 700; font-size: 16px; background: var(--soft); flex: none; }
+.sup-text { width: 100%; min-height: 240px; margin-top: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; font: 13.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--soft); color: var(--ink); resize: vertical; box-sizing: border-box; }
+.sup-copy { margin-top: 10px; }
+@media (max-width: 420px) { .top .t small { display: none; } }
