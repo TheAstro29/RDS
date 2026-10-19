@@ -1,5 +1,5 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzJ8HJ1FlVckHAwJxkGJbySBbDfrtcEoxYR9tbxSBqhYv3smR4U1qqQC4mwnA57EF7Jvw/exec";
-const APP_VERSION = '2.6.1';
+const APP_VERSION = '2.7.0';
 const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับ Google Script
 const ADMIN_SESSION_KEY = 'rds_admin_session';
 const CACHE_KEY = 'rds_cache';
@@ -19,6 +19,22 @@ let currentPage = 'exec';
 const LANG_KEY = 'rds_lang';
 const LANG = (() => { try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'th'; } catch (e) { return 'th'; } })();
 const EN_DICT = {
+    "รูปประกอบการเคลม": "Claim photos",
+    "รูป": "photo",
+    "ลบรูป": "Delete photo",
+    "ถ่ายรูป": "Take photo",
+    "เลือกรูป": "Choose photo",
+    "ต้องแนบอย่างน้อย 1 รูป · ระบบย่อรูปให้อัตโนมัติ": "At least 1 photo required · photos are resized automatically",
+    "เปิดรูปนี้ไม่ได้ ลองเลือกรูปอื่น": "Couldn't open this image — try another",
+    "อัปโหลดรูปไม่ครบ": "Some photos didn't upload",
+    "เพิ่มรูป": "Add photo",
+    "ดูรูป": "View photo",
+    "เปิดรูปเต็ม": "Open full size",
+    "ลบรูปนี้?": "Delete this photo?",
+    "ไฟล์จะย้ายไปถังขยะของ Google Drive (กู้คืนได้ภายใน 30 วัน)": "The file moves to Google Drive trash (restorable for 30 days)",
+    "ลบรูปแล้ว": "Photo deleted",
+    "กรุณาแนบรูปประกอบการเคลม": "Please attach claim photos",
+    "ต้องแนบรูปอย่างน้อย 1 รูป (ถ่ายรูปหรือเลือกจากคลังรูป)": "At least 1 photo is required (take one or choose from your gallery)",
     "เปิดหน้าพิมพ์ไม่ได้": "Could not open the print page",
     "เบราว์เซอร์บล็อกหน้าต่างใหม่ — กรุณาอนุญาตป๊อปอัปสำหรับเว็บนี้ แล้วกดพิมพ์อีกครั้ง": "The browser blocked the new window \u2014 allow pop-ups for this site and tap Print again",
     "ถ้าหน้าต่างพิมพ์ไม่ขึ้นเอง กดปุ่มพิมพ์ หรือ Ctrl+P": "If the print dialog doesn't open, tap Print or press Ctrl+P",
@@ -468,6 +484,11 @@ const SERVER_MSG = [
     [/^ไม่พบรายการนี้.*/, () => 'Entry not found (it may have been changed by another user) — please refresh'],
     [/^เกิดข้อผิดพลาดที่เซิร์ฟเวอร์(?: \(doGet\))?: (.*)$/, m => 'Server error: ' + m[1]],
     [/^ข้อความยาวเกินไป$/, () => 'Text is too long'],
+    [/^แนบรูปได้เฉพาะรายการเคลม$/, () => 'Photos can only be attached to claims'],
+    [/^แนบรูปได้สูงสุด (\d+) รูปต่อรายการ$/, m => `Up to ${m[1]} photos per entry`],
+    [/^ไฟล์รูปไม่ถูกต้อง$/, () => 'Invalid image file'],
+    [/^รูปใหญ่เกินไป$/, () => 'Image is too large'],
+    [/^ไม่พบรูปนี้ในรายการ$/, () => 'Photo not found in this entry'],
     [/^ชื่อใหม่เหมือนชื่อเดิม$/, () => 'The new name is the same as the old one'],
     [/^ไม่พบชื่อนี้ในรายชื่อ$/, () => 'Name not found in the list'],
 ];
@@ -721,7 +742,7 @@ async function syncAction(action, payload, successText) {
             await fetchData();
             Swal.close();
             toast(successText || T('บันทึกสำเร็จ'));
-            return true;
+            return result;
         }
         if (result.code === 'unauthorized') {
             setAdminUI(false); renderAll();
@@ -1041,6 +1062,7 @@ function histRowHtml(l) {
     if (l.status === 'PENDING') acts.push(`<button class="mini g" onclick="confirmTestToSale('${id}')">💰 ${T('ลูกค้าซื้อแล้ว')}</button><button class="mini s" onclick="returnTestItem('${id}')">🔄 ${T('รับคืน')}</button>`);
     if (l.status === 'WAITING_CLAIM') acts.push(`<button class="mini p" onclick="closeClaim('${id}')">📦 ${T('ปิดงานเคลม')}</button>`);
     if (l.status === 'WAITING_STOCK') acts.push(`<button class="mini r" onclick="processStockClaim('${id}')">⚡ ${T('ของเข้าแล้ว ตัดสต็อก')}</button>`);
+    if (canAddPhoto(l)) acts.push(`<button class="mini pr" onclick="addPhotoLater('${id}')">📷 ${T('เพิ่มรูป')}</button>`);
     if (canPrint(l)) acts.push(printBtnHtml(l));
     if (isAdmin && l.status !== 'CANCELLED') {
         acts.push(`<button class="link" onclick="editRemark('${id}')">${T('แก้หมายเหตุ')}</button>`);
@@ -1053,6 +1075,7 @@ function histRowHtml(l) {
             <div class="meta">${d ? thaiTime(d) : esc(l.date)} · ${T('ผู้จัดทำ')} ${esc(U(l.sale) || '-')} · <span class="mono">${id}</span></div>
             ${bdNoteHtml(l)}
             ${l.remark ? `<div class="note">📝 ${esc(U(l.remark))}</div>` : ''}
+            ${photoStripHtml(l)}
             ${l.status === 'CANCELLED' ? `<div class="note cancel">${T('ยกเลิกแล้ว', 'r')}${l.cancelReason ? ' · ' + esc(U(l.cancelReason)) : ''}</div>` : ''}
             ${acts.length ? `<div class="acts">${acts.join('')}</div>` : ''}
         </div>
@@ -1111,7 +1134,7 @@ async function renderCustomerCard(text) {
 // ============================================================
 const REC_TYPES = LANG === 'en' ? { sale: 'Sale', trial: 'Trial', in: 'Receipt', claim: 'Claim' } : { sale: 'ขายสินค้า', trial: 'ส่งทดลอง', in: 'รับเข้า', claim: 'เคลม' };
 const REC_SHORT = { sale: T('ขาย'), trial: T('ทดลอง'), in: T('รับเข้า'), claim: T('เคลม') };
-const rec = { type: 'sale', cond: 'New', cart: {}, cust: '', sale: '', remark: '', cartOpen: false,
+const rec = { type: 'sale', cond: 'New', cart: {}, cust: '', sale: '', remark: '', cartOpen: false, photos: [],
     // บันทึกย้อนหลัง (v2.4): on = เลือก "ย้อนหลัง", noStock = ไม่ตัด/เพิ่มสต็อก (Admin เท่านั้น)
     bd: { on: false, date: '', time: '', reason: '', noStock: false } };
 function bdIsoDate(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
@@ -1228,6 +1251,7 @@ function renderRec() {
     </div>
     ${rec.type === 'trial' ? T('<div class="notice">ส่งทดลองหลายรุ่นในครั้งเดียวได้ · ตอนปิดงานจะปิดทั้งรายการ (ลูกค้าซื้อทั้งหมด หรือคืนทั้งหมด)</div>') : ''}
     ${rec.type === 'in' && rec.cond === 'Used' ? T('<div class="notice">รับคืนเป็น Used — ถ้าเป็นของทดลองที่ลูกค้าคืน ให้กด “รับคืน” ที่รายการทดลองแทน สต็อกจะไม่ซ้ำ</div>') : ''}
+    ${rec.type === 'claim' ? photoPickerHtml() : ''}
     <div class="rec-layout">
         <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:15px">${T('เลือกสินค้า')}</b>
@@ -1276,6 +1300,11 @@ async function submitRec() {
     if (!rec.sale && sales.length) rec.sale = sales[0];
     const bdErr = bdError();
     if (bdErr) { Swal.fire(T('ข้อมูลบันทึกย้อนหลังไม่ครบ'), bdErr, 'warning'); return; }
+    if (rec.type === 'claim' && !rec.photos.length) {
+        Swal.fire(T('กรุณาแนบรูปประกอบการเคลม'), T('ต้องแนบรูปอย่างน้อย 1 รูป (ถ่ายรูปหรือเลือกจากคลังรูป)'), 'warning');
+        const el = document.getElementById('rec-photos'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+    }
     // ตรวจของพออีกรอบ (ยอดอาจเปลี่ยนหลังเลือกใส่ตะกร้า) — แบบไม่ตัดสต็อกข้าม
     if (recCapped()) {
         const short = items.filter(([k, v]) => { const p = keyParts(k); return v > stockQty(p.model, p.grit, p.cond); });
@@ -1301,11 +1330,14 @@ async function submitRec() {
         showCancelButton: true, confirmButtonColor: '#12a37a', confirmButtonText: T('บันทึก'), cancelButtonText: T('แก้ไข')
     });
     if (!ok.isConfirmed) return;
-    const done = await syncAction('addMultiLogs', { data: [{ sale: rec.sale, cust, typeLabel, direction, item: itemStr, qty: total, remark: (rec.remark || '').trim(), backdate }] }, (LANG === 'en' ? `${REC_TYPES[rec.type]}${backdate ? ' (backdated)' : ''} saved` : `บันทึก${REC_TYPES[rec.type]}${backdate ? 'ย้อนหลัง' : ''}เรียบร้อย`));
+    const done = await syncAction('addMultiLogs', { data: [{ sale: rec.sale, cust, typeLabel, direction, item: itemStr, qty: total, remark: (rec.remark || '').trim(), backdate, photoCount: rec.type === 'claim' ? rec.photos.length : 0 }] }, (LANG === 'en' ? `${REC_TYPES[rec.type]}${backdate ? ' (backdated)' : ''} saved` : `บันทึก${REC_TYPES[rec.type]}${backdate ? 'ย้อนหลัง' : ''}เรียบร้อย`));
     if (done) {
-        rec.cart = {}; rec.cust = ''; rec.remark = ''; rec.cartOpen = false;
+        const photos = rec.type === 'claim' ? rec.photos.slice() : [];
+        const newId = done.ids && done.ids[0];
+        rec.cart = {}; rec.cust = ''; rec.remark = ''; rec.cartOpen = false; rec.photos = [];
         rec.bd = { on: false, date: '', time: '', reason: '', noStock: false };
         showPage(rec.type === 'trial' ? 'dash' : 'hist');
+        if (photos.length && newId) await afterClaimUpload(newId, photos);
     }
 }
 
@@ -1845,6 +1877,126 @@ async function confirmRename(action, payload, label) {
     if (!ok.isConfirmed) return;
     if (action === 'renameModel') rec.cart = {};
     await syncAction(action, payload, T('แก้ชื่อเรียบร้อย'));
+}
+
+// ============================================================
+// v2.7.0 รูปประกอบการเคลม (บังคับอย่างน้อย 1 รูป · สูงสุด 5 รูป)
+//   ย่อรูปในเครื่องก่อนส่ง (ด้านยาว 1600px, JPEG) → อัปโหลดทีละรูปหลังบันทึกรายการ → เก็บใน Google Drive
+// ============================================================
+const PHOTO_MAX = 5, PHOTO_DIM = 1600, PHOTO_Q = 0.8;
+function photoThumb(fid, w) { return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fid)}&sz=w${w || 400}`; }
+function photoFull(fid) { return `https://drive.google.com/file/d/${encodeURIComponent(fid)}/view`; }
+function logPhotos(l) { return Array.isArray(l && l.photos) ? l.photos : String((l && l.photos) || '').split(',').filter(Boolean); }
+
+/** ย่อรูปเป็น JPEG data URL — ใช้ canvas (รองรับรูปจากกล้องมือถือที่ใหญ่มาก) */
+function compressImage(file) {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            const s = Math.min(1, PHOTO_DIM / Math.max(img.naturalWidth, img.naturalHeight));
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(img.naturalWidth * s)); c.height = Math.max(1, Math.round(img.naturalHeight * s));
+            const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
+            URL.revokeObjectURL(url);
+            resolve(c.toDataURL('image/jpeg', PHOTO_Q));
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+        img.src = url;
+    });
+}
+function photoPickerHtml() {
+    const n = rec.photos.length;
+    return `<div class="card photo-card" id="rec-photos">
+        <div class="ph-head"><b>📷 ${T('รูปประกอบการเคลม')} <span class="req">*</span></b><span class="muted">${n}/${PHOTO_MAX} ${T('รูป')}</span></div>
+        <div class="ph-grid">${rec.photos.map((p, i) => `<div class="ph-th"><img src="${p}" alt="${T('รูป')} ${i + 1}"><button class="ph-x" onclick="removeRecPhoto(${i})" aria-label="${T('ลบรูป')} ${i + 1}">✕</button></div>`).join('')}
+        ${n < PHOTO_MAX ? `<label class="ph-add"><input type="file" accept="image/*" capture="environment" onchange="addRecPhotos(this)" hidden><i>📷</i>${T('ถ่ายรูป')}</label>
+            <label class="ph-add"><input type="file" accept="image/*" multiple onchange="addRecPhotos(this)" hidden><i>🖼️</i>${T('เลือกรูป')}</label>` : ''}</div>
+        <small class="muted">${T('ต้องแนบอย่างน้อย 1 รูป · ระบบย่อรูปให้อัตโนมัติ')}</small></div>`;
+}
+function refreshPhotoPicker() { const el = document.getElementById('rec-photos'); if (el) el.outerHTML = photoPickerHtml(); }
+async function addRecPhotos(input) {
+    const files = [...(input.files || [])].filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp)$/i.test(f.name));
+    input.value = '';
+    const room = PHOTO_MAX - rec.photos.length;
+    if (files.length > room) toast(tf(`แนบได้อีก ${room} รูป (สูงสุด ${PHOTO_MAX})`, `You can add ${room} more (max ${PHOTO_MAX})`), 'warning');
+    for (const f of files.slice(0, room)) {
+        try { rec.photos.push(await compressImage(f)); }
+        catch (e) { toast(T('เปิดรูปนี้ไม่ได้ ลองเลือกรูปอื่น'), 'error'); }
+    }
+    refreshPhotoPicker();
+}
+function removeRecPhoto(i) { rec.photos.splice(i, 1); refreshPhotoPicker(); }
+
+/** อัปโหลดรูปทีละรูป พร้อมแถบความคืบหน้า → คืนจำนวนที่สำเร็จ */
+async function uploadPhotos(id, photos) {
+    let okN = 0;
+    for (let i = 0; i < photos.length; i++) {
+        Swal.fire({ title: tf(`กำลังอัปโหลดรูป ${i + 1}/${photos.length}`, `Uploading photo ${i + 1}/${photos.length}`), html: `<div class="up-bar"><i style="width:${Math.round(i / photos.length * 100)}%"></i></div>`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        try {
+            const r = await apiPost({ action: 'uploadClaimPhoto', id, data: photos[i] });
+            if (r.status === 'success') okN++; else console.warn('upload', r.message);
+        } catch (e) { console.warn('upload', e); }
+    }
+    return okN;
+}
+async function afterClaimUpload(id, photos) {
+    const okN = await uploadPhotos(id, photos);
+    await fetchData();
+    if (okN === photos.length) { Swal.close(); toast(tf(`บันทึกเคลมและแนบรูป ${okN} รูปแล้ว`, `Claim saved with ${okN} photo${okN === 1 ? '' : 's'}`)); }
+    else Swal.fire(T('อัปโหลดรูปไม่ครบ'), tf(`บันทึกเคลมแล้ว แต่อัปโหลดรูปไม่สำเร็จ ${photos.length - okN} รูป — กด “📷 เพิ่มรูป” ที่การ์ดเคลมเพื่อลองใหม่`, `The claim was saved, but ${photos.length - okN} photo(s) failed to upload — tap “📷 Add photo” on the claim card to try again`), 'warning');
+}
+/** เพิ่มรูปทีหลังจากการ์ดเคลม */
+function canAddPhoto(l) { return !!l && kindOf(l) === 'claim' && l.status !== 'CANCELLED' && logPhotos(l).length < PHOTO_MAX && (isOpen(l) || isAdmin); }
+function addPhotoLater(id) {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
+    inp.onchange = async () => {
+        const l = findLogById(id); if (!l) return;
+        const room = PHOTO_MAX - logPhotos(l).length;
+        const files = [...inp.files].slice(0, room);
+        if (!files.length) return;
+        const photos = [];
+        for (const f of files) { try { photos.push(await compressImage(f)); } catch (e) { } }
+        if (!photos.length) return toast(T('เปิดรูปนี้ไม่ได้ ลองเลือกรูปอื่น'), 'error');
+        const okN = await uploadPhotos(id, photos);
+        await fetchData();
+        if (okN === photos.length) { Swal.close(); toast(tf(`แนบรูป ${okN} รูปแล้ว`, `${okN} photo${okN === 1 ? '' : 's'} added`)); }
+        else Swal.fire(T('อัปโหลดรูปไม่ครบ'), tf(`อัปโหลดไม่สำเร็จ ${photos.length - okN} รูป ลองใหม่อีกครั้ง`, `${photos.length - okN} photo(s) failed — please try again`), 'warning');
+    };
+    inp.click();
+}
+function photoStripHtml(l) {
+    const ids = logPhotos(l); if (!ids.length) return '';
+    return `<div class="ph-strip">${ids.map((f, i) => `<button class="ph-mini" onclick="openPhotos('${esc(l.id)}', ${i})" aria-label="${T('ดูรูป')} ${i + 1}"><img src="${photoThumb(f, 200)}" alt="" loading="lazy" referrerpolicy="no-referrer"></button>`).join('')}</div>`;
+}
+/** ดูรูปเต็มจอ */
+const pv = { id: '', i: 0 };
+function openPhotos(id, i) { pv.id = id; pv.i = i || 0; renderPhotoViewer(); document.addEventListener('keydown', photoKeys); }
+function photoKeys(e) { if (e.key === 'Escape') closePhotos(); else if (e.key === 'ArrowRight') stepPhoto(1); else if (e.key === 'ArrowLeft') stepPhoto(-1); }
+function closePhotos() { const el = document.getElementById('photo-viewer'); if (el) el.remove(); document.removeEventListener('keydown', photoKeys); }
+function stepPhoto(d) { const n = logPhotos(findLogById(pv.id)).length; if (!n) return; pv.i = (pv.i + d + n) % n; renderPhotoViewer(); }
+function renderPhotoViewer() {
+    const l = findLogById(pv.id); const ids = logPhotos(l); if (!l || !ids.length) return closePhotos();
+    if (pv.i >= ids.length) pv.i = ids.length - 1;
+    const fid = ids[pv.i];
+    let el = document.getElementById('photo-viewer');
+    if (!el) { el = document.createElement('div'); el.id = 'photo-viewer'; el.className = 'pv'; document.body.appendChild(el); }
+    el.innerHTML = `<div class="pv-h"><b>${esc(U(l.cust))} · ${T('รูป')} ${pv.i + 1}/${ids.length}</b><button onclick="closePhotos()" aria-label="${T('ปิด')}">✕</button></div>
+        <div class="pv-img" onclick="if(event.target===this)closePhotos()"><img src="${photoThumb(fid, 1600)}" alt="" referrerpolicy="no-referrer">
+            ${ids.length > 1 ? `<button class="pv-nav l" onclick="stepPhoto(-1)" aria-label="‹">‹</button><button class="pv-nav r" onclick="stepPhoto(1)" aria-label="›">›</button>` : ''}</div>
+        ${ids.length > 1 ? `<div class="pv-dots">${ids.map((_, i) => `<i class="${i === pv.i ? 'on' : ''}"></i>`).join('')}</div>` : ''}
+        <div class="pv-f"><span>${esc(l.id)} · ${thaiShort(logDate(l))}</span><span class="pv-acts">${isAdmin ? `<button onclick="deletePhoto()">🗑 ${T('ลบรูป')}</button>` : ''}<a href="${photoFull(fid)}" target="_blank" rel="noopener">⬇ ${T('เปิดรูปเต็ม')}</a></span></div>`;
+    // ปัดซ้าย/ขวาบนมือถือ
+    const box = el.querySelector('.pv-img'); let x0 = null;
+    box.ontouchstart = e => { x0 = e.touches[0].clientX; };
+    box.ontouchend = e => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) stepPhoto(dx < 0 ? 1 : -1); };
+}
+async function deletePhoto() {
+    const l = findLogById(pv.id); const fid = logPhotos(l)[pv.i]; if (!fid) return;
+    const r = await Swal.fire({ title: T('ลบรูปนี้?'), text: T('ไฟล์จะย้ายไปถังขยะของ Google Drive (กู้คืนได้ภายใน 30 วัน)'), icon: 'warning', showCancelButton: true, confirmButtonColor: '#d94f4f', confirmButtonText: T('ลบ'), cancelButtonText: T('ยกเลิก'), reverseButtons: true });
+    if (!r.isConfirmed) return;
+    closePhotos();
+    await syncAction('deleteClaimPhoto', { id: pv.id, fileId: fid }, T('ลบรูปแล้ว'));
 }
 
 // ปิดการซูมบนมือถือ — iPhone ไม่สนใจ user-scalable=no จึงกันการถ่างนิ้วตรงนี้ ส่วนแตะสองครั้งปิดด้วย touch-action ใน CSS
