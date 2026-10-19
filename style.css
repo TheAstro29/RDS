@@ -17,7 +17,48 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 [hidden] { display: none !important; }
 
 /* ---------- Loading ---------- */
-#loading { position: fixed; inset: 0; z-index: 3000; background: var(--primary); display: flex; align-items: center; justify-content: center; transition: opacity .4s; color: #fff; }
+/* v2.7.2 หน้าโหลดครั้งแรก — เพชรวาดเส้น + วงแหวนลูกกลิ้งหมุน + ประกายวิ่ง */
+#loading { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; color: #fff; overflow: hidden;
+    background: radial-gradient(120% 90% at 50% 35%, #146a50 0%, #0e4a38 45%, #072a20 100%); transition: opacity .55s ease, visibility .55s; }
+#loading.done { opacity: 0; visibility: hidden; }
+#loading.done .sp-center { transform: scale(1.08) translateY(-6px); transition: transform .55s cubic-bezier(.2, .7, .2, 1); }
+.sp-glow { position: absolute; width: 520px; height: 520px; border-radius: 50%; background: radial-gradient(circle, rgba(79, 216, 166, .28), rgba(79, 216, 166, 0) 65%); animation: spPulse 3.2s ease-in-out infinite; }
+.sp-center { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 24px; }
+.sp-mark { position: relative; width: 150px; height: 150px; display: grid; place-items: center; margin-bottom: 18px; }
+.sp-ring { position: absolute; inset: 0; width: 100%; height: 100%; animation: spSpin 7s linear infinite; }
+.sp-ring circle { fill: none; stroke: rgba(255, 255, 255, .22); stroke-width: 2; stroke-dasharray: 3 9; stroke-linecap: round; }
+.sp-ring circle.r2 { stroke: rgba(79, 216, 166, .55); stroke-width: 3; stroke-dasharray: 90 300; animation: spSpin 2.4s cubic-bezier(.6, .1, .4, .9) infinite reverse; transform-origin: 80px 80px; }
+.sp-gem { width: 92px; height: 92px; overflow: visible; filter: drop-shadow(0 10px 22px rgba(0, 0, 0, .35)); animation: spFloat 3.2s ease-in-out 1.6s infinite; }
+.sp-gem .g-line { fill: none; stroke: #e9fff6; stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 340; stroke-dashoffset: 340; animation: spDraw 1.1s ease-out .15s forwards; }
+.sp-gem .g-line.l2 { stroke-width: 1.4; stroke: rgba(233, 255, 246, .75); animation-delay: .65s; }
+.sp-gem .g-fill { opacity: 0; transform-origin: 60px 70px; transform: scale(.85); animation: spFillIn .7s ease-out 1.05s forwards; }
+.sp-gem .g-shine { animation: spShine 2.6s ease-in-out 1.6s infinite; }
+.sp-title { display: flex; gap: 6px; font-size: 34px; font-weight: 800; letter-spacing: .14em; line-height: 1; }
+.sp-title span { display: inline-block; opacity: 0; transform: translateY(14px); animation: spRise .55s cubic-bezier(.2, .8, .2, 1) forwards; }
+.sp-title span:nth-child(1) { animation-delay: .9s; } .sp-title span:nth-child(2) { animation-delay: 1s; } .sp-title span:nth-child(3) { animation-delay: 1.1s; }
+.sp-sub { margin-top: 8px; font-size: 12.5px; letter-spacing: .06em; opacity: 0; animation: spFade .6s ease 1.3s forwards; color: rgba(255, 255, 255, .78); }
+.sp-bar { width: 168px; height: 4px; border-radius: 99px; margin-top: 22px; background: rgba(255, 255, 255, .14); overflow: hidden; opacity: 0; animation: spFade .5s ease 1.4s forwards; }
+.sp-bar i { display: block; width: 40%; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #12a37a, #4fd8a6); animation: spSlide 1.25s ease-in-out infinite; }
+.sp-msg { margin-top: 12px; font-size: 12.5px; color: rgba(255, 255, 255, .7); min-height: 18px; opacity: 0; animation: spFade .5s ease 1.5s forwards; transition: opacity .25s; }
+.sp-msg.swap { opacity: 0 !important; }
+.sp-spark { position: absolute; width: 6px; height: 6px; background: #b8ffe3; transform: rotate(45deg); border-radius: 1px; opacity: 0; box-shadow: 0 0 10px #4fd8a6; animation: spTwinkle 3s ease-in-out infinite; }
+.sp-spark.s1 { top: 22%; left: 20%; animation-delay: 1.4s; } .sp-spark.s2 { top: 30%; right: 18%; animation-delay: 2.1s; width: 4px; height: 4px; }
+.sp-spark.s3 { bottom: 26%; left: 26%; animation-delay: 2.7s; width: 5px; height: 5px; } .sp-spark.s4 { bottom: 20%; right: 24%; animation-delay: 1.8s; }
+.sp-spark.s5 { top: 46%; left: 10%; animation-delay: 3.2s; width: 3px; height: 3px; }
+@keyframes spDraw { to { stroke-dashoffset: 0; } }
+@keyframes spFillIn { to { opacity: 1; transform: scale(1); } }
+@keyframes spShine { 0% { transform: skewX(-20deg) translateX(0); } 55%, 100% { transform: skewX(-20deg) translateX(230px); } }
+@keyframes spSpin { to { transform: rotate(360deg); } }
+@keyframes spFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes spRise { to { opacity: 1; transform: none; } }
+@keyframes spFade { to { opacity: 1; } }
+@keyframes spSlide { 0% { transform: translateX(-110%); } 100% { transform: translateX(280%); } }
+@keyframes spPulse { 0%, 100% { transform: scale(.92); opacity: .8; } 50% { transform: scale(1.06); opacity: 1; } }
+@keyframes spTwinkle { 0%, 100% { opacity: 0; transform: rotate(45deg) scale(.4); } 40% { opacity: 1; transform: rotate(45deg) scale(1); } 70% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+    #loading *, #loading { animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; }
+    .sp-bar i { width: 100%; }
+}
 .loading-content { text-align: center; }
 .logo { width: 40px; height: 40px; border-radius: 12px; background: var(--primary-dark); display: grid; place-items: center; font-weight: 800; font-size: 12px; letter-spacing: .04em; border: 1px solid rgba(255, 255, 255, .15); color: #fff; flex: none; }
 .logo.big { width: 84px; height: 84px; border-radius: 24px; font-size: 24px; margin: 0 auto 14px; }
@@ -469,3 +510,27 @@ body.print-mode .pdoc { zoom: var(--pz, 1); }
 .hrow.cancelled .items { text-decoration: line-through; color: var(--sub); }
 .hrow.cancelled > .q { text-decoration: line-through; }
 .hrow .note.cancel { color: #9b3131; background: #fdf0f0; }
+
+/* ===== v2.7.2 Skeleton loading ===== */
+.skel { display: block; max-width: 100%; border-radius: 8px; background: linear-gradient(90deg, #ebe6d8 25%, #f7f4ec 37%, #ebe6d8 63%); background-size: 400% 100%; animation: skel 1.3s ease-in-out infinite; }
+@keyframes skel { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+@media (prefers-reduced-motion: reduce) { .skel, .ph-mini, .pv-img.loading::before { animation: none !important; } }
+.sk-title { padding: 2px 0; }
+.sk-card { display: flex; flex-direction: column; }
+.sk-kpi { display: flex; flex-direction: column; gap: 8px; }
+.sk-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.sk-row:last-child { border-bottom: 0; }
+.sk-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.sk-nu { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sk-chips { display: flex; gap: 8px; overflow: hidden; }
+.sk-mini { grid-template-columns: repeat(3, 1fr); margin: 10px 0; }
+.load-fail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 28px 16px; text-align: center; }
+.load-fail small { color: var(--sub); }
+.load-fail .btn-ghost { margin-top: 8px; }
+/* รูปเคลม: shimmer ระหว่างโหลดรูปจาก Google Drive */
+.ph-mini { background: linear-gradient(90deg, #ebe6d8 25%, #f7f4ec 37%, #ebe6d8 63%); background-size: 400% 100%; animation: skel 1.3s ease-in-out infinite; }
+.ph-mini img { opacity: 0; transition: opacity .2s; }
+.ph-mini img.ok { opacity: 1; }
+.pv-img.loading::before { content: ''; position: absolute; width: min(70vw, 420px); aspect-ratio: 4 / 3; border-radius: 14px; background: linear-gradient(90deg, #2a302d 25%, #3a423e 37%, #2a302d 63%); background-size: 400% 100%; animation: skel 1.3s ease-in-out infinite; }
+.pv-img.loading img { opacity: 0; }
+.pv-img.failed::after { content: '⚠️'; position: absolute; font-size: 28px; opacity: .8; }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>RDS by C2TECH v2.7.1</title>
+    <title>RDS by C2TECH v2.7.2</title>
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#0e4a38" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -20,17 +20,34 @@
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <div id="loading">
-        <div class="loading-content">
-            <div class="logo big">RDS</div>
-            <b>Roller Diamond Stock</b>
-            <p>by C2TECH · <span data-en="Loading...">กำลังโหลดข้อมูล...</span></p>
+    <div id="loading" class="splash" role="status" aria-live="polite">
+        <div class="sp-glow"></div>
+        <div class="sp-spark s1"></div><div class="sp-spark s2"></div><div class="sp-spark s3"></div><div class="sp-spark s4"></div><div class="sp-spark s5"></div>
+        <div class="sp-center">
+            <div class="sp-mark">
+                <svg class="sp-ring" viewBox="0 0 160 160" aria-hidden="true"><circle cx="80" cy="80" r="72" /><circle class="r2" cx="80" cy="80" r="62" /></svg>
+                <svg class="sp-gem" viewBox="0 0 120 120" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="spFill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4fd8a6" /><stop offset=".55" stop-color="#12a37a" /><stop offset="1" stop-color="#0b6b51" /></linearGradient>
+                        <linearGradient id="spShine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0" /><stop offset=".5" stop-color="#fff" stop-opacity=".85" /><stop offset="1" stop-color="#fff" stop-opacity="0" /></linearGradient>
+                        <clipPath id="spClip"><path d="M34 30h52l22 24-48 56-48-56z" /></clipPath>
+                    </defs>
+                    <path class="g-fill" d="M34 30h52l22 24-48 56-48-56z" fill="url(#spFill)" />
+                    <g clip-path="url(#spClip)"><rect class="g-shine" x="-60" y="0" width="40" height="120" fill="url(#spShine)" transform="skewX(-20)" /></g>
+                    <path class="g-line" d="M34 30h52l22 24-48 56-48-56z" />
+                    <path class="g-line l2" d="M12 54h96M34 30l12 24 14-24 14 24 12-24M46 54l14 56 14-56" />
+                </svg>
+            </div>
+            <div class="sp-title" aria-label="RDS"><span>R</span><span>D</span><span>S</span></div>
+            <div class="sp-sub">Roller Diamond Stock · by C2TECH</div>
+            <div class="sp-bar"><i></i></div>
+            <div class="sp-msg" id="sp-msg" data-en="Connecting...">กำลังเชื่อมต่อระบบ...</div>
         </div>
     </div>
 
     <header class="top">
         <div class="logo">RDS</div>
-        <div class="t"><b>RDS <span class="ver">v2.7.1</span></b><small>Roller Diamond Stock · by C2TECH</small></div>
+        <div class="t"><b>RDS <span class="ver">v2.7.2</span></b><small>Roller Diamond Stock · by C2TECH</small></div>
         <span class="admin-chip" id="admin-chip" hidden>Admin</span>
         <button class="ibtn hdr-gear" id="hdr-manage" onclick="showPage('manage')" aria-label="ตั้งค่าระบบ" data-en-label="Settings" hidden>⚙️</button>
         <button class="ibtn lang-btn" id="lang-btn" onclick="setLang(LANG === 'en' ? 'th' : 'en')" aria-label="Switch to English">EN</button>
@@ -48,7 +65,7 @@
             <button class="nitem" data-nav="hist" onclick="showPage('hist')" data-en="🕒 History">🕒 ประวัติ</button>
             <button class="nitem" data-nav="dash" onclick="showPage('dash')" data-en="📊 Overview">📊 ภาพรวม</button>
             <button class="nitem" data-nav="manage" id="side-manage" onclick="showPage('manage')" data-en="⚙️ Settings" hidden>⚙️ ตั้งค่าระบบ</button>
-            <div class="foot">RDS by C2TECH · v2.7.1</div>
+            <div class="foot">RDS by C2TECH · v2.7.2</div>
         </aside>
 
         <main>

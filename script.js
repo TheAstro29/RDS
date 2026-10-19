@@ -1,5 +1,5 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzJ8HJ1FlVckHAwJxkGJbySBbDfrtcEoxYR9tbxSBqhYv3smR4U1qqQC4mwnA57EF7Jvw/exec";
-const APP_VERSION = '2.7.1';
+const APP_VERSION = '2.7.2';
 const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับ Google Script
 const ADMIN_SESSION_KEY = 'rds_admin_session';
 const CACHE_KEY = 'rds_cache';
@@ -19,6 +19,7 @@ let currentPage = 'exec';
 const LANG_KEY = 'rds_lang';
 const LANG = (() => { try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'th'; } catch (e) { return 'th'; } })();
 const EN_DICT = {
+    "ลองใหม่": "Try again",
     "คืนสต็อก": "Stock returned",
     "หักสต็อกออก": "Stock removed",
     "ไม่มีผลต่อสต็อก": "No stock change",
@@ -627,12 +628,47 @@ function toast(text, icon) {
 // ============================================================
 // เริ่มต้น / โหลดข้อมูล
 // ============================================================
+// ============================================================
+// v2.7.2 Skeleton loading — ทุกจุดที่รอข้อมูลจาก Google Sheet
+//   ใช้แทนหน้าจอโหลดเต็มจอ (ครั้งแรกที่ยังไม่มีข้อมูลในเครื่อง) · ประวัติรุ่น · ประวัติลูกค้า · รูปเคลม
+// ============================================================
+let dataReady = false, loadFailed = false;
+const SK = (w, h, extra) => `<span class="skel" style="width:${w};height:${h || '12px'};${extra || ''}"></span>`;
+function skRows(n, withAvatar) {
+    return Array.from({ length: n }, (_, i) => `<div class="sk-row">${withAvatar === false ? '' : SK('38px', '38px', 'border-radius:12px;flex:none')}
+        <div class="sk-col">${SK(`${55 + (i * 17) % 30}%`, '13px')}${SK(`${35 + (i * 23) % 35}%`, '10px')}</div>${SK('34px', '16px', 'flex:none')}</div>`).join('');
+}
+function skKpis(n) { return `<div class="kpis">${Array.from({ length: n }, () => `<div class="kpi sk-kpi">${SK('48%', '10px')}${SK('40%', '22px')}${SK('62%', '10px')}</div>`).join('')}</div>`; }
+function skCard(title, body) { return `<div class="card sk-card">${title === false ? '' : SK(title || '42%', '15px', 'margin-bottom:12px')}${body}</div>`; }
+function skTitle(sub) { return `<div class="ptitle sk-title"><div>${sub === false ? '' : SK('140px', '10px', 'margin-bottom:8px')}${SK('190px', '22px')}</div></div>`; }
+function skeletonPage(name) {
+    if (name === 'exec') return `${skTitle()}${skKpis(4)}${skCard('38%', skRows(3))}<div class="grid2">${skCard('', skRows(4, false))}${skCard('', skRows(4, false))}</div>`;
+    if (name === 'dash') return `${skTitle()}${skKpis(4)}<div class="grid2">${skCard('', skRows(3))}${skCard('', skRows(4))}</div>${skCard('', skRows(4, false))}`;
+    if (name === 'stock') return `${skTitle(false)}<div class="stock-sum">${Array.from({ length: 3 }, () => `<div>${SK('40%', '10px')}${SK('55%', '22px', 'margin-top:6px')}</div>`).join('')}</div>
+        ${SK('100%', '44px', 'border-radius:16px')}<div class="sgrid">${Array.from({ length: 4 }, () => skCard('', `<div class="sk-nu">${SK('100%', '64px', 'border-radius:12px')}${SK('100%', '64px', 'border-radius:12px')}</div>`)).join('')}</div>`;
+    if (name === 'hist') return `${skTitle(false)}${skCard(false, `${SK('100%', '44px', 'border-radius:14px;margin-bottom:10px')}<div class="sk-chips">${SK('64px', '30px', 'border-radius:99px')}${SK('70px', '30px', 'border-radius:99px')}${SK('70px', '30px', 'border-radius:99px')}${SK('80px', '30px', 'border-radius:99px')}</div>`)}
+        ${SK('90px', '11px', 'margin:4px 2px')}${skCard(false, skRows(5))}`;
+    if (name === 'rec') return `<div class="sk-title">${SK('120px', '10px', 'margin-bottom:8px')}${SK('150px', '20px')}</div>${SK('100%', '46px', 'border-radius:16px')}
+        ${skCard(false, `${SK('30%', '11px', 'margin-bottom:8px')}${SK('100%', '42px', 'border-radius:12px;margin-bottom:12px')}${SK('30%', '11px', 'margin-bottom:8px')}${SK('100%', '42px', 'border-radius:12px')}`)}
+        ${skCard(false, skRows(4, false))}`;
+    if (name === 'manage') return `${skTitle(false)}<div class="mgrid">${skCard('', skRows(3, false))}${skCard('', skRows(2, false))}${skCard('', skRows(3, false))}</div>`;
+    return skCard('', skRows(3));
+}
+function loadFailHtml() {
+    return `<div class="card empty load-fail"><div style="font-size:28px">📡</div><b>${T('โหลดข้อมูลไม่สำเร็จ')}</b><small>${T('ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่')}</small>
+        <button class="btn-ghost" onclick="fetchData()">↻ ${T('ลองใหม่')}</button></div>`;
+}
+/** หน้าต่างประวัติรุ่น ระหว่างรอข้อมูล */
+function skModelHtml() { return `${skKpis(4)}${skCard('', skRows(2, false))}${skCard('', skRows(5))}`; }
+/** การ์ดประวัติลูกค้า ระหว่างรอข้อมูล */
+function skCustHtml(name) { return `<div class="card cust-card sk-card" aria-busy="true"><h2>👤 ${esc(U(name))}</h2><div class="kpis sk-mini">${Array.from({ length: 3 }, () => `<div class="kpi sk-kpi">${SK('50%', '10px')}${SK('40%', '20px')}</div>`).join('')}</div>${skRows(3, false)}</div>`; }
 function init() {
     applyStaticLang();
     if (startPrintMode()) return;
+    startSplashMessages();
     try {
         const cached = localStorage.getItem(CACHE_KEY);
-        if (cached) { applyData(JSON.parse(cached)); hideLoading(); renderAll(); }
+        if (cached) { applyData(JSON.parse(cached)); hideLoading(true); renderAll(); }
     } catch (e) { try { localStorage.removeItem(CACHE_KEY); } catch (_) { } }
     restoreAdminSession();
     renderAll();
@@ -649,16 +685,36 @@ function applyData(data) {
     summary = data.summary || null;
     totalLogs = data.totalLogs || allLogs.length;
     if (data.tr) TR = Object.assign({}, data.tr);
+    dataReady = true; loadFailed = false;
 }
-function hideLoading() {
+// หน้าโหลดครั้งแรก: แสดงเฉพาะตอนยังไม่มีข้อมูลในเครื่อง · โชว์อย่างน้อย 1.6 วิ ให้แอนิเมชันเล่นจบ ไม่กระพริบ
+const SPLASH_T0 = Date.now(), SPLASH_MIN = 1600;
+let splashTimer = null;
+const SPLASH_MSGS = [['กำลังเชื่อมต่อระบบ...', 'Connecting...'], ['กำลังโหลดข้อมูลสต็อก...', 'Loading stock data...'], ['กำลังเตรียม Dashboard...', 'Preparing your dashboard...'], ['อีกนิดเดียว...', 'Almost there...']];
+function startSplashMessages() {
+    const m = document.getElementById('sp-msg'); if (!m) return;
+    let i = 0;
+    splashTimer = setInterval(() => {
+        if (i >= SPLASH_MSGS.length - 1) return clearInterval(splashTimer);
+        i++; m.classList.add('swap');
+        setTimeout(() => { m.textContent = SPLASH_MSGS[i][LANG === 'en' ? 1 : 0]; m.classList.remove('swap'); }, 250);
+    }, 1800);
+}
+function hideLoading(instant) {
     const el = document.getElementById('loading');
-    if (!el || el.style.display === 'none') return;
-    el.style.opacity = '0';
-    setTimeout(() => { el.style.display = 'none'; }, 400);
+    if (!el || el.dataset.gone) return;
+    el.dataset.gone = '1';
+    const wait = instant ? 0 : Math.max(0, SPLASH_MIN - (Date.now() - SPLASH_T0));
+    setTimeout(() => {
+        clearInterval(splashTimer);
+        el.classList.add('done');
+        setTimeout(() => { el.style.display = 'none'; }, instant ? 0 : 600);
+    }, wait);
 }
 async function fetchData() {
     const btn = document.getElementById('main-refresh');
     btn.classList.add('spinning');
+    if (!dataReady && loadFailed) { loadFailed = false; renderAll(); }
     try {
         const res = await fetch(API_URL);
         const data = await res.json();
@@ -668,9 +724,7 @@ async function fetchData() {
         renderAll();
     } catch (e) {
         console.error(e);
-        if (!allLogs.length && !inventory.length) {
-            Swal.fire(T('โหลดข้อมูลไม่สำเร็จ'), T('ตรวจสอบอินเทอร์เน็ตแล้วกดปุ่มรีเฟรชอีกครั้ง'), 'error');
-        }
+        if (!dataReady) { loadFailed = true; renderAll(); }   // ยังไม่มีข้อมูลเลย → แสดงการ์ด "ลองใหม่" แทน skeleton
     } finally {
         hideLoading();
         btn.classList.remove('spinning');
@@ -778,6 +832,12 @@ function showPage(name) {
 }
 function renderAll() { renderPage(currentPage); renderCartBar(); }
 function renderPage(name) {
+    if (!dataReady) {
+        const el = document.getElementById('page-' + name);
+        if (el) { el.innerHTML = loadFailed ? loadFailHtml() : skeletonPage(name); el.setAttribute('aria-busy', loadFailed ? 'false' : 'true'); }
+        return;
+    }
+    const pel = document.getElementById('page-' + name); if (pel) pel.removeAttribute('aria-busy');
     if (name === 'dash') renderDash();
     else if (name === 'stock') renderStock();
     else if (name === 'hist') renderHist();
@@ -926,7 +986,7 @@ async function openModelHistory(idx) {
     const slot = document.getElementById('modal-slot');
     slot.innerHTML = `<div class="modal-back" onclick="if(event.target===this)closeModal()"><div class="modal" role="dialog" aria-label="${T('ประวัติรุ่น')} ${esc(g.key)}">
         <div class="modal-h"><span class="model">${esc(g.model)}</span><span class="grit">#${esc(g.grit)}</span><button class="x" onclick="closeModal()" aria-label="${T('ปิด')}">✕</button></div>
-        <div id="model-body"><div class="empty">${T('กำลังโหลดประวัติของรุ่นนี้...')}</div></div></div></div>`;
+        <div id="model-body" aria-busy="true">${skModelHtml()}</div></div></div>`;
     document.addEventListener('keydown', escClose);
     let logs;
     try {
@@ -937,6 +997,7 @@ async function openModelHistory(idx) {
         logs = allLogs.filter(l => parseItems(l.item, l.typeLabel).some(it => it.model === g.model && it.grit === g.grit));
     }
     const body = document.getElementById('model-body'); if (!body) return;
+    body.removeAttribute('aria-busy');
     const now = new Date();
     const mStart = new Date(now.getFullYear(), now.getMonth(), 1), yStart = new Date(now.getFullYear(), 0, 1);
     const qtyOf = l => parseItems(l.item, l.typeLabel).filter(it => it.model === g.model && it.grit === g.grit).reduce((a, it) => a + it.qty, 0);
@@ -1145,7 +1206,7 @@ async function renderCustomerCard(text) {
     if (!name) { box.innerHTML = ''; return; }
     if (custLookup.name !== name) {
         custLookup = { name, data: null };
-        box.innerHTML = `<div class="card cust-card"><h2>👤 ${esc(U(name))}</h2><div class="empty">${T('กำลังโหลดประวัติทั้งหมดของลูกค้า...')}</div></div>`;
+        box.innerHTML = skCustHtml(name);
         let data;
         try {
             const res = await fetch(`${API_URL}?type=customer&name=${encodeURIComponent(name)}`);
@@ -1319,6 +1380,7 @@ function renderRec() {
 }
 function renderCartBar() {
     const slot = document.getElementById('cartbar-slot');
+    if (!dataReady) { if (slot) slot.innerHTML = ''; return; }
     if (currentPage !== 'rec') { slot.innerHTML = ''; return; }
     const n = cartEntries().length;
     slot.innerHTML = `<div class="cartbar mobile-only"><div class="cnt">🛒 ${n} ${TP(n, 'รายการ')}<b>${fmtN(cartTotal())} ${T('ก้อน')}</b></div>
@@ -2020,7 +2082,7 @@ function addPhotoLater(id) {
 }
 function photoStripHtml(l) {
     const ids = logPhotos(l); if (!ids.length) return '';
-    return `<div class="ph-strip">${ids.map((f, i) => `<button class="ph-mini" onclick="openPhotos('${esc(l.id)}', ${i})" aria-label="${T('ดูรูป')} ${i + 1}"><img src="${photoThumb(f, 200)}" alt="" loading="lazy" referrerpolicy="no-referrer"></button>`).join('')}</div>`;
+    return `<div class="ph-strip">${ids.map((f, i) => `<button class="ph-mini" onclick="openPhotos('${esc(l.id)}', ${i})" aria-label="${T('ดูรูป')} ${i + 1}"><img src="${photoThumb(f, 200)}" alt="" loading="lazy" referrerpolicy="no-referrer" onload="this.classList.add('ok')"></button>`).join('')}</div>`;
 }
 /** ดูรูปเต็มจอ */
 const pv = { id: '', i: 0 };
@@ -2035,7 +2097,7 @@ function renderPhotoViewer() {
     let el = document.getElementById('photo-viewer');
     if (!el) { el = document.createElement('div'); el.id = 'photo-viewer'; el.className = 'pv'; document.body.appendChild(el); }
     el.innerHTML = `<div class="pv-h"><b>${esc(U(l.cust))} · ${T('รูป')} ${pv.i + 1}/${ids.length}</b><button onclick="closePhotos()" aria-label="${T('ปิด')}">✕</button></div>
-        <div class="pv-img" onclick="if(event.target===this)closePhotos()"><img src="${photoThumb(fid, 1600)}" alt="" referrerpolicy="no-referrer">
+        <div class="pv-img loading" onclick="if(event.target===this)closePhotos()"><img src="${photoThumb(fid, 1600)}" alt="" referrerpolicy="no-referrer" onload="this.parentNode.classList.remove('loading')" onerror="this.parentNode.classList.remove('loading');this.parentNode.classList.add('failed')">
             ${ids.length > 1 ? `<button class="pv-nav l" onclick="stepPhoto(-1)" aria-label="‹">‹</button><button class="pv-nav r" onclick="stepPhoto(1)" aria-label="›">›</button>` : ''}</div>
         ${ids.length > 1 ? `<div class="pv-dots">${ids.map((_, i) => `<i class="${i === pv.i ? 'on' : ''}"></i>`).join('')}</div>` : ''}
         <div class="pv-f"><span>${esc(l.id)} · ${thaiShort(logDate(l))}</span><span class="pv-acts">${isAdmin ? `<button onclick="deletePhoto()">🗑 ${T('ลบรูป')}</button>` : ''}<a href="${photoFull(fid)}" target="_blank" rel="noopener">⬇ ${T('เปิดรูปเต็ม')}</a></span></div>`;
