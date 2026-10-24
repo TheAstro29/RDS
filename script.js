@@ -1,13 +1,24 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbzJ8HJ1FlVckHAwJxkGJbySBbDfrtcEoxYR9tbxSBqhYv3smR4U1qqQC4mwnA57EF7Jvw/exec";
-const APP_VERSION = '2.7.3';
-const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับ Google Script
-const ADMIN_SESSION_KEY = 'rds_admin_session';
+// v3.0.0 — ย้ายหลังบ้านจาก Google Apps Script ไป Firebase (project c2-rds) + ระบบผู้ใช้ Admin / Guest
+//   หน้าเว็บเรียก Cloud Functions เท่านั้น (rdsGet / rdsAction / login ...) — ไม่อ่านฐานข้อมูลตรง
+//   ค่า config ด้านล่างเป็นค่าสาธารณะของเว็บแอป (ไม่ใช่รหัสลับ) ความปลอดภัยอยู่ที่ session + สิทธิ์ฝั่งเซิร์ฟเวอร์
+const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCjk2f6HA9qfH9xOkmiAFViIyodLf68gGY",
+    authDomain: "c2-rds.firebaseapp.com",
+    projectId: "c2-rds",
+    storageBucket: "c2-rds.firebasestorage.app",
+    messagingSenderId: "589327437479",
+    appId: "1:589327437479:web:83c61386fc68e81454d582"
+};
+const FN_REGION = 'asia-southeast1';
+const APP_VERSION = '3.0.0';
+const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับหลังบ้าน (rds-core.gs)
+const SESSION_KEY = 'rds_session';
 const CACHE_KEY = 'rds_cache';
 const DEFAULT_MIN_STOCK = 10;
 const TRIAL_WARN_DAYS = 7, TRIAL_ALERT_DAYS = 14;
 
 let inventory = [], sales = [], customers = [], allLogs = [], summary = null, totalLogs = 0;
-let isAdmin = false, adminToken = '';
+let isAdmin = false, sessionToken = '', me = null;   // me = { uid, name, username, role }
 let currentPage = 'exec';
 
 // ============================================================
@@ -19,6 +30,94 @@ let currentPage = 'exec';
 const LANG_KEY = 'rds_lang';
 const LANG = (() => { try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'th'; } catch (e) { return 'th'; } })();
 const EN_DICT = {
+    // ---- v3.0.0 ระบบผู้ใช้ ----
+    "โหลดระบบเชื่อมต่อไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วรีเฟรช": "Couldn't load the connection library — check your internet and refresh",
+    "บัญชีผู้ใช้": "Account",
+    "เซสชันหมดอายุหรือถูกออกจากระบบ กรุณาเข้าสู่ระบบใหม่": "Your session expired or you were signed out — please sign in again",
+    "ชื่อผู้ใช้": "Username",
+    "รหัสผ่าน": "Password",
+    "แสดงรหัสผ่าน": "Show password",
+    "ลืมรหัสผ่าน? ติดต่อ Admin เพื่อรีเซ็ต": "Forgot your password? Ask an Admin to reset it",
+    "จดจำการเข้าสู่ระบบในเครื่องนี้ 30 วัน": "Stays signed in on this device for 30 days",
+    "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน": "Please enter your username and password",
+    "กำลังเข้าสู่ระบบ...": "Signing in...",
+    "บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อ Admin": "This account is disabled — please contact an Admin",
+    "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง": "Wrong username or password",
+    "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่": "Sign-in failed — please try again",
+    "เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่": "Couldn't connect — check your internet and try again",
+    "บัญชี Guest ดูข้อมูลได้ทุกเมนู แต่ทำรายการไม่ได้": "Guest accounts can view every menu but can't record or change anything",
+    "จัดการผู้ใช้": "Manage users",
+    "เปลี่ยนรหัสผ่าน": "Change password",
+    "ออกจากระบบ?": "Sign out?",
+    "ตั้งรหัสผ่านใหม่": "Set a new password",
+    "เข้าใช้ครั้งแรกหรือรหัสถูกรีเซ็ต กรุณาตั้งรหัสผ่านใหม่ของคุณเองก่อนใช้งาน": "First sign-in or your password was reset — please set your own new password to continue",
+    "รหัสผ่านชั่วคราว (ที่ได้รับจาก Admin)": "Temporary password (from Admin)",
+    "รหัสผ่านปัจจุบัน": "Current password",
+    "รหัสผ่านใหม่": "New password",
+    "อย่างน้อย 8 ตัว": "at least 8 characters",
+    "ยืนยันรหัสผ่านใหม่": "Confirm new password",
+    "บันทึกรหัสผ่านใหม่": "Save new password",
+    "กรุณากรอกรหัสผ่านปัจจุบัน": "Please enter your current password",
+    "รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัว": "The new password must be at least 8 characters",
+    "รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน": "The new passwords don't match",
+    "รหัสผ่านปัจจุบันไม่ถูกต้อง": "Current password is incorrect",
+    "รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสเดิม": "The new password must be different from the old one",
+    "เปลี่ยนรหัสผ่านไม่สำเร็จ": "Couldn't change the password",
+    "เปลี่ยนรหัสผ่านเรียบร้อย": "Password changed",
+    "บัญชี Guest ดูข้อมูลได้อย่างเดียว": "Guest accounts are view-only",
+    "ทำรายการไม่ได้": "Not allowed",
+    "บัญชีนี้ดูข้อมูลได้อย่างเดียว (Guest)": "This account is view-only (Guest)",
+    " — เฉพาะ Admin": " — Admin only",
+    "ผู้ใช้งาน": "Users",
+    "เพิ่มผู้ใช้": "Add user",
+    "ยังไม่เคยเข้าใช้": "never signed in",
+    "ปิดใช้งาน": "Disabled",
+    "ค้นหาชื่อ / ชื่อผู้ใช้": "Search name / username",
+    "แก้ไขชื่อ/สิทธิ์/เปิด-ปิดใช้งาน": "Edit name / role / enable-disable",
+    "รีเซ็ตรหัสผ่าน": "Reset password",
+    "ลบบัญชี": "Delete account",
+    "<div class=\"empty\">ไม่พบผู้ใช้</div>": "<div class=\"empty\">No users found</div>",
+    "คุณ": "you",
+    "บัญชีหลัก": "primary account",
+    "ถูกล็อกชั่วคราว": "Temporarily locked",
+    "รอตั้งรหัสผ่านครั้งแรก": "Waiting for first sign-in",
+    "ใช้งานอยู่": "Active",
+    "ล่าสุด": "last",
+    "ปลดล็อก": "Unlock",
+    "โหลดรายชื่อผู้ใช้ไม่สำเร็จ": "Couldn't load users",
+    "แก้ไขผู้ใช้": "Edit user",
+    "ชื่อที่แสดง": "Display name",
+    "เช่น สมชาย ใจดี / Supplier ABC": "e.g. Somchai / Supplier ABC",
+    "ชื่อผู้ใช้ (ใช้ login)": "Username (for sign-in)",
+    "เช่น somchai": "e.g. somchai",
+    "ชื่อผู้ใช้เปลี่ยนไม่ได้": "Usernames can't be changed",
+    "a–z, 0–9 ( . _ - ได้) 3–30 ตัว": "a–z, 0–9 (. _ - allowed), 3–30 characters",
+    "สิทธิ์": "Role",
+    "ดูได้ทุกเมนู ค้นหา/กรอง/สลับภาษาได้ แต่ทำรายการไม่ได้": "Views every menu, can search/filter/switch language, but can't record anything",
+    "ทำได้ทุกอย่าง รวมถึงจัดการผู้ใช้": "Can do everything, including managing users",
+    "เปลี่ยนสิทธิ์ของตัวเองไม่ได้": "You can't change your own role",
+    "บัญชีหลักเป็น Admin เสมอ": "The primary account is always Admin",
+    "เปิดใช้งานบัญชีนี้": "Account enabled",
+    "ระบบจะสร้างรหัสผ่านชั่วคราวให้หลังกดสร้าง ผู้ใช้ต้องตั้งรหัสใหม่ตอนเข้าใช้ครั้งแรก": "A temporary password is generated after you tap Create. The user sets their own password at first sign-in",
+    "สร้างผู้ใช้": "Create user",
+    "ชื่อผู้ใช้นี้มีอยู่แล้ว": "This username is already taken",
+    "ใช้ได้เฉพาะ a–z, 0–9 . _ - (3–30 ตัว)": "Only a–z, 0–9 . _ - (3–30 characters)",
+    "ใช้ได้ ไม่ซ้ำ": "Available",
+    "ยืนยันการเปลี่ยนแปลง?": "Confirm changes?",
+    "ผู้ใช้นี้จะถูกออกจากระบบทุกเครื่อง และต้องเข้าสู่ระบบใหม่": "This user will be signed out on every device and must sign in again",
+    "บันทึกแล้ว": "Saved",
+    "เสร็จสิ้น": "Done",
+    "ส่งข้อมูลนี้ให้ผู้ใช้ (แสดงครั้งเดียว)": "Send these details to the user (shown once)",
+    "รหัสผ่านชั่วคราว": "Temporary password",
+    "คัดลอก": "Copy",
+    "ผู้ใช้ต้องตั้งรหัสผ่านใหม่ (อย่างน้อย 8 ตัว) ตอนเข้าใช้ครั้งแรก": "The user must set a new password (at least 8 characters) at first sign-in",
+    "คัดลอกแล้ว": "Copied",
+    "ระบบจะสร้างรหัสชั่วคราวใหม่ และผู้ใช้ที่ login ค้างอยู่ทุกเครื่องจะถูกออกจากระบบ": "A new temporary password is generated and the user is signed out on every device",
+    "รีเซ็ต": "Reset",
+    "ผู้ใช้นี้จะเข้าสู่ระบบไม่ได้อีก (ประวัติการทำรายการเดิมยังอยู่) — ถ้าแค่พักการใช้งาน ให้ปิดใช้งานแทน": "This user can no longer sign in (existing history is kept) — to pause access, disable the account instead",
+    "ลบผู้ใช้แล้ว": "User deleted",
+    "รูปจะถูกลบถาวร": "The photo will be deleted permanently",
+    "รูปจะถูกเอาออกจากรายการนี้ (ไฟล์เดิมยังอยู่ใน Google Drive)": "The photo is removed from this entry (the original file stays in Google Drive)",
     "เริ่มทดลอง": "Trial started",
     "ลองใหม่": "Try again",
     "คืนสต็อก": "Stock returned",
@@ -439,8 +538,7 @@ async function flushTranslations() {
     texts.forEach(t => { trQueue.delete(t); trAsked.add(t); });
     if (!texts.length) return;
     try {
-        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'translateTexts', texts }) });
-        const r = await res.json();
+        const r = await callFn('rdsAction', { action: 'translateTexts', texts });
         if (r && r.status === 'success' && r.tr) {
             Object.assign(TR, r.tr);
             try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (c) { c.tr = Object.assign(c.tr || {}, r.tr); localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } } catch (e) { }
@@ -497,6 +595,9 @@ const SERVER_MSG = [
     [/^รูปใหญ่เกินไป$/, () => 'Image is too large'],
     [/^ไม่พบรูปนี้ในรายการ$/, () => 'Photo not found in this entry'],
     [/^ชื่อใหม่เหมือนชื่อเดิม$/, () => 'The new name is the same as the old one'],
+    [/^บัญชีนี้ดูข้อมูลได้อย่างเดียว.*/, () => 'This account is view-only (Guest)'],
+    [/^กรุณาเข้าสู่ระบบใหม่$/, () => 'Please sign in again'],
+    [/^รายการที่ต้องแก้มากเกินไปในครั้งเดียว.*/, () => 'Too many entries to update at once'],
     [/^ไม่พบชื่อนี้ในรายชื่อ$/, () => 'Name not found in the list'],
 ];
 function TS(msg) {
@@ -668,12 +769,15 @@ function init() {
     if (startPrintMode()) return;
     startSplashMessages();
     try {
+        // แสดงข้อมูลที่เก็บในเครื่องได้เฉพาะตอนที่ยัง login อยู่ (ออกจากระบบแล้วลบทิ้ง)
         const cached = localStorage.getItem(CACHE_KEY);
-        if (cached) { applyData(JSON.parse(cached)); hideLoading(); renderAll(); }
+        if (cached && localStorage.getItem(SESSION_KEY)) { applyData(JSON.parse(cached)); hideLoading(); }
+        else if (cached) localStorage.removeItem(CACHE_KEY);
     } catch (e) { try { localStorage.removeItem(CACHE_KEY); } catch (_) { } }
-    restoreAdminSession();
+    if (!restoreSession()) { hideLoading(true); showLogin(); return; }
     renderAll();
     fetchData();
+    checkSession();
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { }); });
     }
@@ -718,9 +822,10 @@ async function fetchData() {
     btn.classList.add('spinning');
     if (!dataReady && loadFailed) { loadFailed = false; renderAll(); }
     try {
-        const res = await fetch(API_URL);
-        const data = await res.json();
+        const data = await callFn('rdsGet', {});
+        if (data.code === 'unauthorized' || data.code === 'must_change_password') { handleAuthError(data.code); return; }
         if (data.status === 'error') throw new Error(TS(data.message));
+        if (data.user) updateMe(data.user);
         applyData(data);
         try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch (e) { }
         renderAll();
@@ -734,56 +839,195 @@ async function fetchData() {
 }
 
 // ============================================================
-// Admin
+// v3.0.0 เชื่อมต่อ Firebase + ระบบผู้ใช้ (Admin / Guest)
 // ============================================================
-const ICON_LOCK = '<svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5Zm3 8H9V6a3 3 0 0 1 6 0Z"/></svg>';
-const ICON_UNLOCK = '<svg viewBox="0 0 24 24"><path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2H9V6a3 3 0 0 1 5.75-1.19 1 1 0 0 0 1.87-.7A5 5 0 0 0 12 1Z"/></svg>';
-
-function restoreAdminSession() {
-    let ok = false;
+let _fns = null;
+function fns() {
+    if (_fns) return _fns;
+    if (typeof firebase === 'undefined') throw new Error(T('โหลดระบบเชื่อมต่อไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วรีเฟรช'));
+    const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(FIREBASE_CONFIG);
+    _fns = app.functions(FN_REGION);
+    return _fns;
+}
+/** เรียก Cloud Function — แนบ session token ให้อัตโนมัติ (เว้นตอน login) */
+async function callFn(name, data) {
+    const body = Object.assign({}, data || {});
+    if (name !== 'login' && sessionToken) body.token = sessionToken;
+    const res = await fns().httpsCallable(name, { timeout: 90000 })(body);
+    return res.data || {};
+}
+function restoreSession() {
     try {
-        const s = JSON.parse(localStorage.getItem(ADMIN_SESSION_KEY) || 'null');
-        if (s && s.token && s.expires > Date.now()) { adminToken = s.token; ok = true; }
-        else localStorage.removeItem(ADMIN_SESSION_KEY);
+        const s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+        if (s && s.token && s.user) { sessionToken = s.token; updateMe(s.user); return true; }
     } catch (e) { }
-    setAdminUI(ok);
+    return false;
 }
-function setAdminUI(on) {
-    isAdmin = on;
-    document.getElementById('admin-btn').innerHTML = on ? ICON_UNLOCK : ICON_LOCK;
-    document.getElementById('admin-btn').setAttribute('aria-label', on ? T('ออกจากโหมด Admin') : T('เข้าสู่ระบบ Admin'));
-    document.getElementById('admin-chip').hidden = !on;
-    document.getElementById('side-manage').hidden = !on;
-    document.getElementById('hdr-manage').hidden = !on;
-    if (!on) {
-        adminToken = '';
-        try { localStorage.removeItem(ADMIN_SESSION_KEY); } catch (e) { }
-        if (currentPage === 'manage') showPage('exec');
-    }
+function saveSession() { try { localStorage.setItem(SESSION_KEY, JSON.stringify({ token: sessionToken, user: me })); } catch (e) { } }
+function updateMe(user) {
+    me = Object.assign({}, me || {}, user || {});
+    if (sessionToken) saveSession();
+    setRoleUI();
 }
-async function toggleAdmin() {
-    if (isAdmin) { setAdminUI(false); renderAll(); toast(T('ออกจากโหมด Admin แล้ว'), 'info'); return; }
-    const { value: pass } = await Swal.fire({
-        title: T('เข้าสู่ระบบ Admin'), input: 'password', inputPlaceholder: T('รหัสผ่าน Admin'),
-        confirmButtonColor: '#0e4a38', confirmButtonText: T('เข้าสู่ระบบ'), cancelButtonText: T('ยกเลิก'), showCancelButton: true
-    });
-    if (!pass) return;
-    Swal.fire({ title: T('กำลังตรวจสอบ...'), allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+/** ปรับหน้าจอตามสิทธิ์ — Guest ซ่อนทุกปุ่มที่ทำรายการ (หลังบ้านปฏิเสธคำสั่งจาก Guest อีกชั้นเสมอ) */
+function setRoleUI() {
+    isAdmin = !!(me && me.role === 'Admin');
+    document.body.classList.toggle('role-admin', isAdmin);
+    document.body.classList.toggle('role-guest', !!me && !isAdmin);
+    const chip = document.getElementById('admin-chip');
+    if (chip) { chip.hidden = !me; chip.textContent = isAdmin ? 'Admin' : 'Guest'; chip.classList.toggle('guest', !isAdmin); }
+    const ub = document.getElementById('user-btn');
+    if (ub) { ub.textContent = initials(me && me.name); ub.setAttribute('aria-label', (me && me.name) || T('บัญชีผู้ใช้')); ub.hidden = !me; }
+    ['side-manage', 'hdr-manage'].forEach(id => { const el = document.getElementById(id); if (el) el.hidden = !isAdmin; });
+    if (!isAdmin && (currentPage === 'manage' || currentPage === 'rec')) showPage('exec');
+}
+/** ตัวย่อชื่อสำหรับรูปโปรไฟล์ — ตัดตามตัวอักษรที่มองเห็น (สระ/วรรณยุกต์ไทยไม่หลุดออกจากตัวพยัญชนะ) */
+function graphemes(str) {
+    try { if (typeof Intl !== 'undefined' && Intl.Segmenter) return [...new Intl.Segmenter('th', { granularity: 'grapheme' }).segment(str)].map(x => x.segment); } catch (e) { }
+    return Array.from(str);
+}
+function initials(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    const g = p => graphemes(p);
+    if (HAS_THAI.test(parts[0])) return g(parts[0])[0] + (parts[1] ? g(parts[1])[0] : '');
+    return (parts.length > 1 ? g(parts[0])[0] + g(parts[1])[0] : g(parts[0]).slice(0, 2).join('')).toUpperCase();
+}
+/** เช็ค session ตอนเปิดแอป (ต่ออายุอัตโนมัติ + อัปเดตสิทธิ์ล่าสุด เช่น Admin เปลี่ยนสิทธิ์ให้) */
+async function checkSession() {
     try {
-        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'adminLogin', password: pass }) });
-        const r = await res.json();
-        if (r.status === 'success' && r.token) {
-            adminToken = r.token;
-            try { localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ token: r.token, expires: r.expires })); } catch (e) { }
-            Swal.close();
-            setAdminUI(true); renderAll();
-            toast(T('เข้าสู่โหมด Admin แล้ว'));
-        } else {
-            Swal.fire({ icon: 'error', title: T('รหัสผ่านไม่ถูกต้อง') });
+        const r = await callFn('validateSessionCallable', {});
+        if (!r.ok) return handleAuthError(r.error);
+        const roleChanged = me && r.user && r.user.role !== me.role;
+        updateMe(r.user);
+        if (r.user.mustChangePassword) return showChangePassword(true);
+        if (roleChanged) renderAll();
+    } catch (e) { /* ออฟไลน์ — ใช้งานต่อด้วยข้อมูลในเครื่อง */ }
+}
+function handleAuthError(code) {
+    if (code === 'must_change_password') { showChangePassword(true); return; }
+    clearSession();
+    showLogin(T('เซสชันหมดอายุหรือถูกออกจากระบบ กรุณาเข้าสู่ระบบใหม่'));
+}
+function clearSession() {
+    sessionToken = ''; me = null; isAdmin = false;
+    try { localStorage.removeItem(SESSION_KEY); localStorage.removeItem(CACHE_KEY); } catch (e) { }
+    inventory = []; sales = []; customers = []; allLogs = []; summary = null; totalLogs = 0; TR = {}; dataReady = false;
+    document.body.classList.remove('role-admin', 'role-guest');
+}
+
+// ---------------- หน้าเข้าสู่ระบบ ----------------
+function showLogin(msg) {
+    closeModal(); closeSheet();
+    let el = document.getElementById('login-screen');
+    if (!el) { el = document.createElement('div'); el.id = 'login-screen'; document.body.appendChild(el); }
+    el.innerHTML = `<div class="lg-wrap">
+        <div class="lg-brand"><div class="lg-t">RDS</div><div class="lg-s">Roller Diamond Stock · by C2TECH</div></div>
+        <form class="lg-card" id="lg-form" autocomplete="on">
+            <div class="field"><label for="lg-user">${T('ชื่อผู้ใช้')}</label><input id="lg-user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+            <div class="field"><label for="lg-pass">${T('รหัสผ่าน')}</label><div class="pw-wrap"><input id="lg-pass" name="password" type="password" autocomplete="current-password" required><button type="button" class="pw-eye" aria-label="${T('แสดงรหัสผ่าน')}" onclick="togglePw('lg-pass', this)">👁</button></div></div>
+            <div class="lg-err" id="lg-err" role="alert" ${msg ? '' : 'hidden'}>${esc(msg || '')}</div>
+            <button class="confirm" type="submit" id="lg-btn">${T('เข้าสู่ระบบ')}</button>
+            <div class="lg-help">${T('ลืมรหัสผ่าน? ติดต่อ Admin เพื่อรีเซ็ต')}</div>
+            <button type="button" class="lg-lang" onclick="setLang(LANG === 'en' ? 'th' : 'en')">🌐 ${LANG === 'en' ? 'ภาษาไทย' : 'English'}</button>
+        </form>
+        <div class="lg-foot">${T('จดจำการเข้าสู่ระบบในเครื่องนี้ 30 วัน')} · v${APP_VERSION}</div>
+    </div>`;
+    el.hidden = false;
+    document.body.classList.add('logged-out');
+    document.getElementById('lg-form').onsubmit = doLogin;
+    setTimeout(() => { const u = document.getElementById('lg-user'); if (u) u.focus(); }, 50);
+}
+function hideLogin() { const el = document.getElementById('login-screen'); if (el) el.hidden = true; document.body.classList.remove('logged-out'); }
+function togglePw(id, btn) { const i = document.getElementById(id); if (!i) return; i.type = i.type === 'password' ? 'text' : 'password'; btn.classList.toggle('on', i.type === 'text'); }
+async function doLogin(e) {
+    e.preventDefault();
+    const u = document.getElementById('lg-user').value.trim(), p = document.getElementById('lg-pass').value;
+    const err = document.getElementById('lg-err'), btn = document.getElementById('lg-btn');
+    const showErr = t => { err.textContent = t; err.hidden = false; };
+    if (!u || !p) return showErr(T('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน'));
+    btn.disabled = true; btn.textContent = T('กำลังเข้าสู่ระบบ...'); err.hidden = true;
+    try {
+        const r = await callFn('login', { username: u, password: p });
+        if (!r.ok) {
+            if (r.error === 'account_locked') { const mins = Math.max(1, Math.ceil(((Number(r.lockedUntil) || 0) - Date.now()) / 60000)); return showErr(tf(`🔒 บัญชีถูกล็อกชั่วคราวเพราะกรอกรหัสผิดหลายครั้ง ลองใหม่ใน ${mins} นาที หรือติดต่อ Admin`, `🔒 Account temporarily locked after too many wrong passwords — try again in ${mins} min or contact Admin`)); }
+            if (r.error === 'account_disabled') return showErr(T('บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อ Admin'));
+            if (r.error === 'invalid_credentials') return showErr(Number.isFinite(r.attemptsLeft) && r.attemptsLeft <= 3 ? tf(`ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง — เหลืออีก ${r.attemptsLeft} ครั้งก่อนบัญชีถูกล็อก`, `Wrong username or password — ${r.attemptsLeft} attempts left before the account locks`) : T('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'));
+            return showErr(T('เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่'));
         }
-    } catch (e) {
-        Swal.fire({ icon: 'error', title: T('เชื่อมต่อไม่ได้'), text: T('ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่') });
-    }
+        sessionToken = r.token; me = null; updateMe(r.user);
+        if (r.user.mustChangePassword) { hideLogin(); showChangePassword(true); return; }
+        await afterLogin();
+    } catch (ex) {
+        console.error(ex); showErr(T('เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่'));
+    } finally { if (btn.isConnected) { btn.disabled = false; btn.textContent = T('เข้าสู่ระบบ'); } }
+}
+async function afterLogin() {
+    hideLogin();
+    dataReady = false; loadFailed = false;
+    showPage('exec');
+    await fetchData();
+    toast(tf(`ยินดีต้อนรับ ${me.name}`, `Welcome, ${me.name}`));
+}
+
+// ---------------- เมนูผู้ใช้ / เปลี่ยนรหัส / ออกจากระบบ ----------------
+function openUserMenu() {
+    if (!me) return;
+    const slot = document.getElementById('modal-slot');
+    slot.innerHTML = `<div class="modal-back" onclick="if(event.target===this)closeModal()"><div class="modal um-menu" role="dialog" aria-label="${T('บัญชีผู้ใช้')}">
+        <div class="um-me"><div class="um-av ${isAdmin ? 'r-admin' : 'r-guest'}">${esc(initials(me.name))}</div><div><b>${esc(me.name)}</b><small>${esc(me.username || '')} · <span class="role-pill ${isAdmin ? 'r-admin' : 'r-guest'}">${isAdmin ? '🛡️ Admin' : '👁 Guest'}</span></small></div><button class="x" onclick="closeModal()" aria-label="${T('ปิด')}">✕</button></div>
+        ${isAdmin ? '' : `<div class="notice">${T('บัญชี Guest ดูข้อมูลได้ทุกเมนู แต่ทำรายการไม่ได้')}</div>`}
+        ${isAdmin ? `<button class="um-item" onclick="closeModal();showPage('manage');setTimeout(()=>{const u=document.getElementById('users-card');if(u)u.scrollIntoView({behavior:'smooth'})},80)">👥 ${T('จัดการผู้ใช้')}</button>` : ''}
+        <button class="um-item" onclick="closeModal();showChangePassword(false)">🔑 ${T('เปลี่ยนรหัสผ่าน')}</button>
+        <button class="um-item" onclick="setLang(LANG === 'en' ? 'th' : 'en')">🌐 ${LANG === 'en' ? 'ภาษาไทย' : 'English'}</button>
+        <button class="um-item danger" onclick="logout()">↩ ${T('ออกจากระบบ')}</button>
+    </div></div>`;
+    document.addEventListener('keydown', escClose);
+}
+async function logout() {
+    closeModal();
+    const r = await Swal.fire({ title: T('ออกจากระบบ?'), icon: 'question', showCancelButton: true, confirmButtonColor: '#0e4a38', confirmButtonText: T('ออกจากระบบ'), cancelButtonText: T('ยกเลิก'), reverseButtons: true });
+    if (!r.isConfirmed) return;
+    const t = sessionToken;
+    clearSession();
+    if (t) fns().httpsCallable('logoutSession')({ token: t }).catch(() => { });
+    showLogin();
+}
+function showChangePassword(forced) {
+    const slot = document.getElementById('modal-slot');
+    slot.innerHTML = `<div class="modal-back" ${forced ? '' : 'onclick="if(event.target===this)closeModal()"'}><div class="modal um-form" role="dialog" aria-label="${T('เปลี่ยนรหัสผ่าน')}">
+        <div class="modal-h"><b style="font-size:17px">🔑 ${forced ? T('ตั้งรหัสผ่านใหม่') : T('เปลี่ยนรหัสผ่าน')}</b>${forced ? '' : `<button class="x" onclick="closeModal()" aria-label="${T('ปิด')}">✕</button>`}</div>
+        ${forced ? `<div class="notice">${T('เข้าใช้ครั้งแรกหรือรหัสถูกรีเซ็ต กรุณาตั้งรหัสผ่านใหม่ของคุณเองก่อนใช้งาน')}</div>` : ''}
+        <div class="field"><label for="cp-old">${forced ? T('รหัสผ่านชั่วคราว (ที่ได้รับจาก Admin)') : T('รหัสผ่านปัจจุบัน')}</label><input id="cp-old" type="password" autocomplete="current-password"></div>
+        <div class="field"><label for="cp-new">${T('รหัสผ่านใหม่')} <small class="muted">(${T('อย่างน้อย 8 ตัว')})</small></label><div class="pw-wrap"><input id="cp-new" type="password" autocomplete="new-password"><button type="button" class="pw-eye" onclick="togglePw('cp-new', this)" aria-label="${T('แสดงรหัสผ่าน')}">👁</button></div></div>
+        <div class="field"><label for="cp-new2">${T('ยืนยันรหัสผ่านใหม่')}</label><input id="cp-new2" type="password" autocomplete="new-password"></div>
+        <div class="lg-err" id="cp-err" role="alert" hidden></div>
+        <button class="confirm" id="cp-btn">${T('บันทึกรหัสผ่านใหม่')}</button>
+        ${forced ? `<button class="link" style="margin-top:6px" onclick="clearSession();showLogin()">${T('ออกจากระบบ')}</button>` : ''}
+    </div></div>`;
+    if (!forced) document.addEventListener('keydown', escClose);
+    document.getElementById('cp-btn').onclick = async () => {
+        const o = document.getElementById('cp-old').value, n = document.getElementById('cp-new').value, n2 = document.getElementById('cp-new2').value;
+        const err = document.getElementById('cp-err'), btn = document.getElementById('cp-btn');
+        const showErr = t => { err.textContent = t; err.hidden = false; };
+        if (!o) return showErr(T('กรุณากรอกรหัสผ่านปัจจุบัน'));
+        if (n.length < 8) return showErr(T('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัว'));
+        if (n !== n2) return showErr(T('รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน'));
+        btn.disabled = true;
+        try {
+            const r = await callFn('changePassword', { oldPassword: o, newPassword: n });
+            if (!r.ok) {
+                btn.disabled = false;
+                if (r.error === 'unauthorized') { closeModal(); return handleAuthError('unauthorized'); }
+                return showErr(r.error === 'wrong_password' ? T('รหัสผ่านปัจจุบันไม่ถูกต้อง') : r.error === 'same_password' ? T('รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสเดิม') : r.error === 'password_too_short' ? T('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัว') : T('เปลี่ยนรหัสผ่านไม่สำเร็จ'));
+            }
+            updateMe({ mustChangePassword: false });
+            closeModal();
+            toast(T('เปลี่ยนรหัสผ่านเรียบร้อย'));
+            if (forced) await afterLogin();
+        } catch (e) { btn.disabled = false; showErr(T('เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่')); }
+    };
+    setTimeout(() => { const i = document.getElementById('cp-old'); if (i) i.focus(); }, 50);
 }
 
 // ============================================================
@@ -792,24 +1036,16 @@ async function toggleAdmin() {
 async function syncAction(action, payload, successText) {
     Swal.fire({ title: T('กำลังบันทึก...'), allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
-        const body = Object.assign({ action }, payload || {});
-        if (isAdmin && adminToken) body.token = adminToken;
-        const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) });
-        const rawText = await response.text();
-        let result;
-        try { result = JSON.parse(rawText); }
-        catch (parseErr) { throw new Error(T('เชื่อมต่อ Google Script ไม่ได้ตามที่คาด (ได้รับข้อมูลที่ไม่ใช่ JSON) — โปรดตรวจสอบว่า Deploy เวอร์ชันล่าสุดแล้ว และสิทธิ์การเข้าถึงตั้งเป็น "Anyone"')); }
+        if (!isAdmin) { Swal.close(); toast(T('บัญชี Guest ดูข้อมูลได้อย่างเดียว'), 'info'); return false; }
+        const result = await callFn('rdsAction', Object.assign({ action }, payload || {}));
         if (result.status === 'success') {
             await fetchData();
             Swal.close();
             toast(successText || T('บันทึกสำเร็จ'));
             return result;
         }
-        if (result.code === 'unauthorized') {
-            setAdminUI(false); renderAll();
-            Swal.fire(T('สิทธิ์ Admin หมดอายุ'), T('กรุณากดรูปกุญแจเพื่อเข้าสู่ระบบ Admin ใหม่ แล้วทำรายการอีกครั้ง'), 'warning');
-            return false;
-        }
+        if (result.code === 'unauthorized' || result.code === 'must_change_password') { Swal.close(); handleAuthError(result.code); return false; }
+        if (result.code === 'forbidden') { Swal.fire(T('ทำรายการไม่ได้'), T('บัญชีนี้ดูข้อมูลได้อย่างเดียว (Guest)'), 'info'); checkSession(); return false; }
         Swal.fire(T('ทำรายการไม่สำเร็จ'), TS(result.message) || T('เกิดข้อผิดพลาด'), 'error');
         return false;
     } catch (e) {
@@ -823,7 +1059,7 @@ async function syncAction(action, payload, successText) {
 // นำทาง
 // ============================================================
 function showPage(name) {
-    if (name === 'manage' && !isAdmin) name = 'exec';
+    if ((name === 'manage' || name === 'rec') && !isAdmin) name = 'exec';
     currentPage = name;
     document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + name));
     document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('on', b.dataset.nav === name));
@@ -847,7 +1083,7 @@ function renderPage(name) {
     else if (name === 'exec') renderExec();
     else if (name === 'manage') renderManage();
 }
-function openSheet() { document.getElementById('sheet').classList.add('open'); document.getElementById('sheet-back').hidden = false; }
+function openSheet() { if (!isAdmin) return; document.getElementById('sheet').classList.add('open'); document.getElementById('sheet-back').hidden = false; }
 function closeSheet() { document.getElementById('sheet').classList.remove('open'); document.getElementById('sheet-back').hidden = true; }
 
 function openItems() {
@@ -895,7 +1131,7 @@ function renderDash() {
 
     const todo = [];
     claims.forEach(c => todo.push(`<div class="todo"><span class="dot" style="background:var(--purple)"></span><div><b>${c.status === 'WAITING_STOCK' ? T('เคลมรอของเข้า') : T('เคลมรอปิดงาน')} · ${esc(U(c.cust))}</b><small>${esc(itemsText(c))} · ${c.days ?? '?'} ${TP(c.days ?? '?', 'วัน')}</small></div>
-        <button class="go" onclick="${c.status === 'WAITING_STOCK' ? `processStockClaim('${esc(c.id)}')` : `closeClaim('${esc(c.id)}')`}">${c.status === 'WAITING_STOCK' ? T('ตัดสต็อก ›') : T('ปิดงาน ›')}</button></div>`));
+        ${isAdmin ? `<button class="go" onclick="${c.status === 'WAITING_STOCK' ? `processStockClaim('${esc(c.id)}')` : `closeClaim('${esc(c.id)}')`}">${c.status === 'WAITING_STOCK' ? T('ตัดสต็อก ›') : T('ปิดงาน ›')}</button>` : ''}</div>`));
     if (low.length) todo.push(`<div class="todo"><span class="dot" style="background:var(--orange)"></span><div><b>${T('ใกล้หมด')} ${low.length} ${TP(low.length, 'รุ่น')}</b><small>${low.map(g => `${esc(g.key)} (${g.newQty})`).join(' · ')}</small></div><button class="go" onclick="stockFilter='low';showPage('stock')">${T('ดูคลัง')} ›</button></div>`);
 
     el.innerHTML = `
@@ -911,7 +1147,7 @@ function renderDash() {
                 <div class="tstat ${overdue.length ? 'alert' : ''}"><b>${overdue.length}</b><small>${T('เกิน')} ${TRIAL_ALERT_DAYS} ${TP(TRIAL_ALERT_DAYS, 'วัน')}</small></div>
             </div>
         </div>
-        ${trialCardsHtml(trials, true)}
+        ${trialCardsHtml(trials, isAdmin)}
     </div>
 
     <div class="kpis">
@@ -934,7 +1170,7 @@ function renderDash() {
 
     <div class="card"><h2>📦 ${T('สต็อกคงเหลือ')} <button class="more" onclick="showPage('stock')">${T('ดูคลัง')} ›</button></h2>
         ${groups.map(g => `<div class="list-row"><div class="lr-main"><b>${esc(g.key)} ${g.low ? T('<span class="pill p-low">ใกล้หมด</span>') : ''}</b><small>New ${fmtN(g.newQty)} · Used ${fmtN(g.usedQty)}</small></div><div class="lr-end"><b>${fmtN(g.newQty + g.usedQty)}</b><small>${T('ก้อน')}</small></div></div>`).join('') || T('<div class="empty">ยังไม่มีสินค้า</div>')}
-        <button class="btn-line" onclick="copyReport()">📋 ${T('คัดลอกรายงานสต็อก ส่ง')} LINE</button>
+        ${isAdmin ? `<button class="btn-line" onclick="copyReport()">📋 ${T('คัดลอกรายงานสต็อก ส่ง')} LINE</button>` : ''}
     </div>`;
 }
 
@@ -951,7 +1187,7 @@ function renderStock() {
     // ช่องค้นหาคงไว้ตัวเดิม (เหตุผลเดียวกับหน้าประวัติ — คีย์บอร์ดบนจอไม่ปิดเอง)
     if (!document.getElementById('stock-q')) {
         el.innerHTML = `
-    <div class="ptitle sup-title"><div><h1>${T('คลังสินค้า')}</h1><small id="stock-sub"></small></div><button class="btn-ghost sup-btn" onclick="openSupplierMsg()">🌐 ${T('ข้อความถึง Supplier')}</button></div>
+    <div class="ptitle sup-title"><div><h1>${T('คลังสินค้า')}</h1><small id="stock-sub"></small></div>${isAdmin ? `<button class="btn-ghost sup-btn" onclick="openSupplierMsg()">🌐 ${T('ข้อความถึง Supplier')}</button>` : ''}</div>
     <div class="stock-sum" id="stock-sum"></div>
     <div class="toolbar">
         <label class="search">🔍<input id="stock-q" type="search" placeholder="${T('ค้นหารุ่น / เบอร์')}" autocomplete="off" enterkeyhint="search"></label>
@@ -995,9 +1231,9 @@ async function openModelHistory(idx) {
     document.addEventListener('keydown', escClose);
     let logs;
     try {
-        const res = await fetch(`${API_URL}?type=model&model=${encodeURIComponent(g.model)}&grit=${encodeURIComponent(g.grit)}`);
-        const r = await res.json();
-        logs = r.logs || [];
+        const r = await callFn('rdsGet', { type: 'model', model: g.model, grit: g.grit });
+        if (!r.logs) throw new Error(r.message || 'no logs');
+        logs = r.logs;
     } catch (e) {
         logs = allLogs.filter(l => parseItems(l.item, l.typeLabel).some(it => it.model === g.model && it.grit === g.grit));
     }
@@ -1178,11 +1414,12 @@ function clearHist() { Object.assign(histState, { kind: 'all', period: 'all', da
 function histRowHtml(l) {
     const q = qtySign(l), k = kindOf(l), d = logDate(l), id = esc(l.id);
     const acts = [];
-    if (l.status === 'PENDING') acts.push(`<button class="mini g" onclick="confirmTestToSale('${id}')">💰 ${T('ลูกค้าซื้อแล้ว')}</button><button class="mini s" onclick="returnTestItem('${id}')">🔄 ${T('รับคืน')}</button>`);
-    if (l.status === 'WAITING_CLAIM') acts.push(`<button class="mini p" onclick="closeClaim('${id}')">📦 ${T('ปิดงานเคลม')}</button>`);
-    if (l.status === 'WAITING_STOCK') acts.push(`<button class="mini r" onclick="processStockClaim('${id}')">⚡ ${T('ของเข้าแล้ว ตัดสต็อก')}</button>`);
+    if (!isAdmin) { /* Guest: ดูอย่างเดียว ไม่มีปุ่มทำรายการ */ }
+    else if (l.status === 'PENDING') acts.push(`<button class="mini g" onclick="confirmTestToSale('${id}')">💰 ${T('ลูกค้าซื้อแล้ว')}</button><button class="mini s" onclick="returnTestItem('${id}')">🔄 ${T('รับคืน')}</button>`);
+    if (isAdmin && l.status === 'WAITING_CLAIM') acts.push(`<button class="mini p" onclick="closeClaim('${id}')">📦 ${T('ปิดงานเคลม')}</button>`);
+    if (isAdmin && l.status === 'WAITING_STOCK') acts.push(`<button class="mini r" onclick="processStockClaim('${id}')">⚡ ${T('ของเข้าแล้ว ตัดสต็อก')}</button>`);
     if (canAddPhoto(l)) acts.push(`<button class="mini pr" onclick="addPhotoLater('${id}')">📷 ${T('เพิ่มรูป')}</button>`);
-    if (canPrint(l)) acts.push(printBtnHtml(l));
+    if (isAdmin && canPrint(l)) acts.push(printBtnHtml(l));
     if (isAdmin && l.status !== 'CANCELLED') {
         acts.push(`<button class="link" onclick="editRemark('${id}')">${T('แก้หมายเหตุ')}</button>`);
         if (!['RETURNED', 'CLAIMED'].includes(l.status)) acts.push(`<button class="link danger" onclick="cancelLog('${id}')">${T('ยกเลิกรายการ')}</button>`);
@@ -1214,8 +1451,9 @@ async function renderCustomerCard(text) {
         box.innerHTML = skCustHtml(name);
         let data;
         try {
-            const res = await fetch(`${API_URL}?type=customer&name=${encodeURIComponent(name)}`);
-            data = (await res.json()).logs || [];
+            const r = await callFn('rdsGet', { type: 'customer', name });
+            if (!r.logs) throw new Error(r.message || 'no logs');
+            data = r.logs;
         } catch (e) { data = allLogs.filter(l => l.cust === name); }
         if (custLookup.name !== name) return;
         custLookup.data = data;
@@ -1303,7 +1541,7 @@ function bdBlockHtml() {
             <div class="field"><label for="bd-reason">${T('เหตุผลที่บันทึกย้อนหลัง')} *</label><input id="bd-reason" value="${esc(b.reason)}" maxlength="300" placeholder="${T('เช่น ส่งของหน้างานแล้วลืมบันทึกในระบบ')}" oninput="rec.bd.reason=this.value" onchange="setBd({},true)"></div>
             <div class="field"><label>${isIn ? T('การเพิ่มสต็อก') : T('การตัดสต็อก')} *</label></div>
             <label class="bd-opt ${noStock ? '' : 'on'}"><input type="radio" name="bd-sm" ${noStock ? '' : 'checked'} onchange="setBd({noStock:false},true)"><span><b>${yesT}</b><small>${yesD}</small></span></label>
-            <label class="bd-opt ${noStock ? 'on' : ''} ${isAdmin ? '' : 'dis'}"><input type="radio" name="bd-sm" id="bd-nostock" ${noStock ? 'checked' : ''} ${isAdmin ? '' : 'disabled'} onchange="setBd({noStock:true},true)"><span><b>${noT}</b> <span class="pill p-claim">Admin</span><small>${isAdmin ? noD : noD + T(' — ต้องเข้าสู่ระบบ Admin (รูปกุญแจ) ก่อน')}</small></span></label>
+            <label class="bd-opt ${noStock ? 'on' : ''} ${isAdmin ? '' : 'dis'}"><input type="radio" name="bd-sm" id="bd-nostock" ${noStock ? 'checked' : ''} ${isAdmin ? '' : 'disabled'} onchange="setBd({noStock:true},true)"><span><b>${noT}</b> <span class="pill p-claim">Admin</span><small>${isAdmin ? noD : noD + T(' — เฉพาะ Admin')}</small></span></label>
             ${noStock ? `<div class="notice">⚠️ ${T('รายการนี้จะ')}<b>${T('ไม่เปลี่ยนจำนวนคงเหลือ')}</b> ${T('ถ้าหินยังอยู่ในคลังจริง ยอดจะไม่ตรง')} — ${T('ใช้เฉพาะเมื่อปรับยอดไปแล้วเท่านั้น')}</div>` : ''}
         </div>` : ''}
     </div>`;
@@ -1592,7 +1830,7 @@ function renderExec() {
         <div class="kpi" style="--c:var(--purple)"><small>${T('คงเหลือในคลัง')}</small><b>${fmtN(s.stockTotal.n + s.stockTotal.u)} <span class="u">${T('ก้อน')}</span></b><em class="muted">New ${fmtN(s.stockTotal.n)} · Used ${fmtN(s.stockTotal.u)}</em></div>
     </div>
     <div class="card trials"><div class="trials-head"><div class="ic">🧪</div><div><h2>${T('ลูกค้าทดลองใช้งาน')}</h2><small>${trials.length} ${TP(trials.length, 'ราย')} · ${T('เรียงจากค้างนานที่สุด')}</small></div>
-        <button class="btn-ghost" style="margin-left:auto" onclick="copyTrials()">📋 ${T('คัดลอกรายชื่อ ส่ง')} LINE</button></div>${trialCardsHtml(trials, false)}</div>
+        ${isAdmin ? `<button class="btn-ghost" style="margin-left:auto" onclick="copyTrials()">📋 ${T('คัดลอกรายชื่อ ส่ง')} LINE</button>` : ''}</div>${trialCardsHtml(trials, false)}</div>
     <div class="grid2">
         <div class="card"><h2>📦 ${T('สต็อกรายรุ่น')}</h2>
             ${stock.map(g => `<div class="bar-row"><span>${esc(g.key)}</span><span class="bar"><i class="bar-new" style="width:${g.newQty / maxStock * 100}%"></i><i class="bar-used" style="width:${g.usedQty / maxStock * 100}%"></i></span><span class="num"><b>${fmtN(g.newQty + g.usedQty)}</b>${g.low ? T(' <span class="pill p-low">ใกล้หมด</span>') : ''}</span></div>`).join('') || T('<div class="empty">ยังไม่มีสินค้า</div>')}
@@ -1609,7 +1847,7 @@ function renderExec() {
         <div class="card"><h2>📈 ${tf('ยอดขาย 14 วันล่าสุด', 'Sales · last 14 days')}</h2><div class="chart-box"><canvas id="chart-trend"></canvas></div></div>
         <div class="card"><h2>🏆 ${tf('5 อันดับหินขายดี', 'Top 5 best sellers')} (${T('ปีนี้')})</h2><div class="chart-box"><canvas id="chart-models"></canvas></div></div>
     </div>
-    <button class="btn-line" onclick="copyWeekly()">📋 ${T('คัดลอกสรุปสัปดาห์ที่แล้ว ส่ง')} LINE</button>`;
+    ${isAdmin ? `<button class="btn-line" onclick="copyWeekly()">📋 ${T('คัดลอกสรุปสัปดาห์ที่แล้ว ส่ง')} LINE</button>` : ''}`;
     drawExecCharts();
 }
 function drawExecCharts() {
@@ -1637,6 +1875,7 @@ function renderManage() {
     const groups = groupStock();
     el.innerHTML = `
     <div class="ptitle"><h1>${T('ตั้งค่าระบบ')}</h1><small>${tf('เฉพาะ Admin', 'Admin only')}</small></div>
+    <div class="card users-card" id="users-card">${usersCardHtml()}</div>
     <div class="mgrid">
         <div class="card"><h2>📦 ${T('รุ่นหิน')} <button class="more" onclick="addModel()">＋ ${T('เพิ่ม')}</button></h2>
             ${groups.map((g, i) => `<div class="mrow"><span><b>${esc(g.key)}</b><small>${T('ใกล้หมดเมื่อ')} New ≤ ${g.minStock} · ${T('คงเหลือ')} ${g.newQty + g.usedQty}</small></span><span style="flex:none"><button class="link" onclick="renameModel(${i})">${T('แก้ชื่อ')}</button><button class="link" onclick="editMinStock(${i})">${T('ตั้งเกณฑ์')}</button><button class="link danger" onclick="deleteModel(${i})">${T('ลบ')}</button></span></div>`).join('') || T('<div class="empty">ยังไม่มีรุ่น</div>')}</div>
@@ -1646,6 +1885,175 @@ function renderManage() {
             ${customers.map((c, i) => `<div class="mrow"><span>${esc(c)}${enNameHint(c)}</span><span style="flex:none"><button class="link" onclick="renameData('CUST', ${i})">${T('แก้ชื่อ')}</button><button class="link" onclick="editEnName('CUST', ${i})">EN</button><button class="link danger" onclick="deleteData('CUST', ${i})">${T('ลบ')}</button></span></div>`).join('') || T('<div class="empty">ยังไม่มีรายชื่อ</div>')}</div>
     </div>`;
 }
+// ============================================================
+// v3.0.0 จัดการผู้ใช้ (Admin) — สร้าง / แก้ชื่อ-สิทธิ์-เปิดปิด / รีเซ็ตรหัส / ปลดล็อก / ลบ
+// ============================================================
+const um = { users: null, me: '', loading: false, error: '', q: '', role: 'all' };
+function usersCardHtml() {
+    if (!um.users && !um.loading && !um.error) loadUsers();
+    const head = `<h2>👥 ${T('ผู้ใช้งาน')} <button class="more" onclick="openUserForm()">＋ ${T('เพิ่มผู้ใช้')}</button></h2>`;
+    if (um.error) return head + `<div class="empty">${esc(um.error)} <button class="link" onclick="loadUsers()">${T('ลองใหม่')}</button></div>`;
+    if (!um.users) return head + skRows(3);
+    const all = um.users;
+    const nA = all.filter(u => u.role === 'Admin').length, nG = all.filter(u => u.role === 'Guest').length, nOff = all.filter(u => !u.active).length;
+    const q = um.q.trim().toLowerCase();
+    const list = all.filter(u => (um.role === 'all' || u.role === um.role) && (!q || [u.name, u.username].some(v => String(v || '').toLowerCase().includes(q))));
+    const last = u => { if (!u.lastLoginAt) return T('ยังไม่เคยเข้าใช้'); const d = new Date(u.lastLoginAt); const n = daysSince(d); return n === 0 ? `${T('วันนี้')} ${thaiTime(d)}` : n === 1 ? T('เมื่อวาน') : `${thaiShort(d)}`; };
+    return head + `
+        <div class="um-kpis"><div><b>${nA}</b><small>Admin</small></div><div><b>${nG}</b><small>Guest</small></div><div><b>${nOff}</b><small>${T('ปิดใช้งาน')}</small></div></div>
+        <div class="um-tools"><label class="search">🔍<input id="um-q" type="search" value="${esc(um.q)}" placeholder="${T('ค้นหาชื่อ / ชื่อผู้ใช้')}" autocomplete="off" oninput="um.q=this.value;refreshUsersList()"></label>
+            <div class="chips">${[['all', T('ทั้งหมด')], ['Admin', 'Admin'], ['Guest', 'Guest']].map(([k, t]) => `<button class="chip ${um.role === k ? 'on' : ''}" onclick="um.role='${k}';refreshUsersCard()">${t}</button>`).join('')}</div></div>
+        <div id="um-list">${usersListHtml(list, last)}</div>
+        <small class="muted">✏️ ${T('แก้ไขชื่อ/สิทธิ์/เปิด-ปิดใช้งาน')} · 🔑 ${T('รีเซ็ตรหัสผ่าน')} · 🗑 ${T('ลบบัญชี')}</small>`;
+}
+function usersListHtml(list, last) {
+    if (!list.length) return T('<div class="empty">ไม่พบผู้ใช้</div>');
+    return list.map(u => {
+        const i = um.users.indexOf(u), self = u.uid === um.me, locked = u.primary || self;
+        return `<div class="um-row ${u.active ? '' : 'off'}">
+            <div class="um-av ${u.role === 'Admin' ? 'r-admin' : 'r-guest'}">${esc(initials(u.name))}</div>
+            <div class="um-main"><b>${esc(u.name)}${self ? ` <small class="muted">(${T('คุณ')})</small>` : ''}</b>
+                <small>${esc(u.username)} · <span class="role-pill ${u.role === 'Admin' ? 'r-admin' : 'r-guest'}">${u.role}</span>${u.primary ? ` · 🔒 ${T('บัญชีหลัก')}` : ''}</small>
+                <small class="${u.active ? (u.locked ? 'st-warn' : 'st-on') : 'st-off'}">● ${!u.active ? T('ปิดใช้งาน') : u.locked ? T('ถูกล็อกชั่วคราว') : u.mustChangePassword ? T('รอตั้งรหัสผ่านครั้งแรก') : T('ใช้งานอยู่')} · ${T('ล่าสุด')} ${esc(last(u))}</small></div>
+            <div class="um-acts">
+                ${u.locked ? `<button class="ic" title="${T('ปลดล็อก')}" aria-label="${T('ปลดล็อก')} ${esc(u.name)}" onclick="unlockUserUI(${i})">🔓</button>` : ''}
+                <button class="ic" title="${T('แก้ไข')}" aria-label="${T('แก้ไข')} ${esc(u.name)}" onclick="openUserForm(${i})">✏️</button>
+                ${self ? '' : `<button class="ic" title="${T('รีเซ็ตรหัสผ่าน')}" aria-label="${T('รีเซ็ตรหัสผ่าน')} ${esc(u.name)}" onclick="resetUserPw(${i})">🔑</button>`}
+                ${locked ? '' : `<button class="ic danger" title="${T('ลบ')}" aria-label="${T('ลบ')} ${esc(u.name)}" onclick="deleteUserUI(${i})">🗑</button>`}
+            </div></div>`;
+    }).join('');
+}
+function refreshUsersCard() { const c = document.getElementById('users-card'); if (c) { c.innerHTML = usersCardHtml(); } }
+function refreshUsersList() {
+    // คงช่องค้นหาตัวเดิมไว้ (ไม่ให้คีย์บอร์ดบนมือถือปิดเองระหว่างพิมพ์) — วาดใหม่เฉพาะรายชื่อ
+    const box = document.getElementById('um-list'); if (!box || !um.users) return;
+    const q = um.q.trim().toLowerCase();
+    const list = um.users.filter(u => (um.role === 'all' || u.role === um.role) && (!q || [u.name, u.username].some(v => String(v || '').toLowerCase().includes(q))));
+    const last = u => { if (!u.lastLoginAt) return T('ยังไม่เคยเข้าใช้'); const d = new Date(u.lastLoginAt); const n = daysSince(d); return n === 0 ? `${T('วันนี้')} ${thaiTime(d)}` : n === 1 ? T('เมื่อวาน') : thaiShort(d); };
+    box.innerHTML = usersListHtml(list, last);
+}
+async function loadUsers() {
+    um.loading = true; um.error = '';
+    try {
+        const r = await callFn('getUserList', {});
+        if (!r.ok) { if (r.error === 'unauthorized') return handleAuthError('unauthorized'); throw new Error(r.error); }
+        um.users = r.users; um.me = r.me;
+    } catch (e) { um.error = T('โหลดรายชื่อผู้ใช้ไม่สำเร็จ'); }
+    um.loading = false;
+    refreshUsersCard();
+}
+const UM_ERR = {
+    invalid_name: ['กรุณาระบุชื่อที่แสดง (ไม่เกิน 60 ตัว)', 'Please enter a display name (max 60 characters)'],
+    invalid_username: ['ชื่อผู้ใช้ต้องเป็น a–z, 0–9 ( . _ - ได้) ยาว 3–30 ตัว ขึ้นต้นด้วยตัวอักษรหรือตัวเลข', 'Username: 3–30 characters, a–z, 0–9 (. _ - allowed), starting with a letter or number'],
+    username_taken: ['ชื่อผู้ใช้นี้มีอยู่แล้ว', 'This username is already taken'],
+    invalid_role: ['สิทธิ์ไม่ถูกต้อง', 'Invalid role'],
+    cannot_change_own_or_primary_role: ['เปลี่ยนสิทธิ์ของตัวเองหรือบัญชีหลักไม่ได้', "You can't change your own role or the primary account's"],
+    cannot_disable_own_or_primary: ['ปิดใช้งานตัวเองหรือบัญชีหลักไม่ได้', "You can't disable yourself or the primary account"],
+    cannot_delete_own_or_primary: ['ลบตัวเองหรือบัญชีหลักไม่ได้', "You can't delete yourself or the primary account"],
+    last_admin: ['ต้องมี Admin ที่ใช้งานอยู่อย่างน้อย 1 คน', 'At least one active Admin is required'],
+    not_found: ['ไม่พบผู้ใช้นี้ กรุณารีเฟรช', 'User not found — please refresh'],
+    use_change_password: ['เปลี่ยนรหัสของตัวเองที่เมนูบัญชี › เปลี่ยนรหัสผ่าน', 'Change your own password from the account menu'],
+    forbidden: ['เฉพาะ Admin เท่านั้น', 'Admin only'],
+};
+const umErr = code => (UM_ERR[code] ? tf(UM_ERR[code][0], UM_ERR[code][1]) : T('ทำรายการไม่สำเร็จ') + (code ? ` (${code})` : ''));
+async function umCall(name, data, okText) {
+    Swal.fire({ title: T('กำลังบันทึก...'), allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const r = await callFn(name, data);
+        if (!r.ok) {
+            if (r.error === 'unauthorized') { Swal.close(); handleAuthError('unauthorized'); return null; }
+            Swal.fire(T('ทำรายการไม่สำเร็จ'), umErr(r.error), 'error'); return null;
+        }
+        if (okText) { Swal.close(); toast(okText); }
+        await loadUsers();
+        return r;
+    } catch (e) { Swal.fire(T('แจ้งเตือน'), T('ไม่สามารถเชื่อมต่อได้'), 'error'); return null; }
+}
+/** หน้าต่างเพิ่ม/แก้ไขผู้ใช้ (i = index ใน um.users, ไม่ใส่ = เพิ่มใหม่) */
+function openUserForm(i) {
+    const u = i === undefined ? null : um.users && um.users[i];
+    const self = u && u.uid === um.me, lockRole = u && (u.primary || self);
+    const role = u ? u.role : 'Guest';
+    const slot = document.getElementById('modal-slot');
+    slot.innerHTML = `<div class="modal-back" onclick="if(event.target===this)closeModal()"><div class="modal um-form" role="dialog" aria-label="${u ? T('แก้ไขผู้ใช้') : T('เพิ่มผู้ใช้')}">
+        <div class="modal-h"><b style="font-size:17px">${u ? '✏️ ' + T('แก้ไขผู้ใช้') : '＋ ' + T('เพิ่มผู้ใช้')}</b><button class="x" onclick="closeModal()" aria-label="${T('ปิด')}">✕</button></div>
+        <div class="field"><label for="uf-name">${T('ชื่อที่แสดง')} <b class="req">*</b></label><input id="uf-name" maxlength="60" value="${esc(u ? u.name : '')}" placeholder="${T('เช่น สมชาย ใจดี / Supplier ABC')}"></div>
+        <div class="field"><label for="uf-user">${T('ชื่อผู้ใช้ (ใช้ login)')} ${u ? '' : '<b class="req">*</b>'}</label><input id="uf-user" maxlength="30" value="${esc(u ? u.username : '')}" ${u ? 'disabled' : ''} autocapitalize="none" spellcheck="false" placeholder="${T('เช่น somchai')}"><small class="muted" id="uf-uhint">${u ? T('ชื่อผู้ใช้เปลี่ยนไม่ได้') : T('a–z, 0–9 ( . _ - ได้) 3–30 ตัว')}</small></div>
+        <div class="field"><label>${T('สิทธิ์')} <b class="req">*</b></label>
+            <div class="um-seg" role="radiogroup">
+                <label class="${role === 'Guest' ? 'on' : ''} ${lockRole ? 'dis' : ''}"><input type="radio" name="uf-role" value="Guest" ${role === 'Guest' ? 'checked' : ''} ${lockRole ? 'disabled' : ''}><b>👁 Guest</b><small>${T('ดูได้ทุกเมนู ค้นหา/กรอง/สลับภาษาได้ แต่ทำรายการไม่ได้')}</small></label>
+                <label class="${role === 'Admin' ? 'on' : ''} ${lockRole ? 'dis' : ''}"><input type="radio" name="uf-role" value="Admin" ${role === 'Admin' ? 'checked' : ''} ${lockRole ? 'disabled' : ''}><b>🛡️ Admin</b><small>${T('ทำได้ทุกอย่าง รวมถึงจัดการผู้ใช้')}</small></label>
+            </div>${lockRole ? `<small class="muted">${self ? T('เปลี่ยนสิทธิ์ของตัวเองไม่ได้') : T('บัญชีหลักเป็น Admin เสมอ')}</small>` : ''}</div>
+        ${u && !lockRole ? `<label class="um-check"><input type="checkbox" id="uf-active" ${u.active ? 'checked' : ''}> ${T('เปิดใช้งานบัญชีนี้')}</label>` : ''}
+        ${u ? '' : `<div class="notice">${T('ระบบจะสร้างรหัสผ่านชั่วคราวให้หลังกดสร้าง ผู้ใช้ต้องตั้งรหัสใหม่ตอนเข้าใช้ครั้งแรก')}</div>`}
+        <div class="lg-err" id="uf-err" role="alert" hidden></div>
+        <button class="confirm" id="uf-btn">${u ? T('บันทึก') : T('สร้างผู้ใช้')}</button>
+    </div></div>`;
+    document.addEventListener('keydown', escClose);
+    slot.querySelectorAll('input[name="uf-role"]').forEach(r => r.addEventListener('change', () => slot.querySelectorAll('.um-seg label').forEach(l => l.classList.toggle('on', l.querySelector('input').checked))));
+    const un = document.getElementById('uf-user');
+    if (!u) un.addEventListener('input', () => {
+        const v = un.value.trim().toLowerCase(), h = document.getElementById('uf-uhint');
+        const taken = (um.users || []).some(x => String(x.username).toLowerCase() === v);
+        h.className = 'muted' + (v ? (taken || !/^[a-z0-9][a-z0-9._-]{2,29}$/.test(v) ? ' bad' : ' good') : '');
+        h.textContent = !v ? T('a–z, 0–9 ( . _ - ได้) 3–30 ตัว') : taken ? '✕ ' + T('ชื่อผู้ใช้นี้มีอยู่แล้ว') : !/^[a-z0-9][a-z0-9._-]{2,29}$/.test(v) ? '✕ ' + T('ใช้ได้เฉพาะ a–z, 0–9 . _ - (3–30 ตัว)') : '✓ ' + T('ใช้ได้ ไม่ซ้ำ');
+    });
+    document.getElementById('uf-btn').onclick = async () => {
+        const err = document.getElementById('uf-err'), showErr = t => { err.textContent = t; err.hidden = false; };
+        const name = document.getElementById('uf-name').value.trim();
+        const roleV = (slot.querySelector('input[name="uf-role"]:checked') || {}).value || role;
+        if (!name) return showErr(umErr('invalid_name'));
+        if (!u) {
+            const username = un.value.trim().toLowerCase();
+            if (!/^[a-z0-9][a-z0-9._-]{2,29}$/.test(username)) return showErr(umErr('invalid_username'));
+            closeModal();
+            const r = await umCall('createUser', { name, username, role: roleV });
+            if (r) showTempPassword(tf(`สร้างผู้ใช้ ${username} แล้ว`, `User ${username} created`), username, r.tempPassword);
+        } else {
+            const data = { uid: u.uid };
+            if (name !== u.name) data.name = name;
+            if (!lockRole && roleV !== u.role) data.role = roleV;
+            const act = document.getElementById('uf-active');
+            if (act && act.checked !== u.active) data.active = act.checked;
+            if (Object.keys(data).length === 1) return closeModal();
+            if (data.role || data.active === false) {
+                const c = await Swal.fire({ title: T('ยืนยันการเปลี่ยนแปลง?'), text: T('ผู้ใช้นี้จะถูกออกจากระบบทุกเครื่อง และต้องเข้าสู่ระบบใหม่'), icon: 'question', showCancelButton: true, confirmButtonColor: '#0e4a38', confirmButtonText: T('ยืนยัน'), cancelButtonText: T('ยกเลิก'), reverseButtons: true });
+                if (!c.isConfirmed) return;
+            }
+            closeModal();
+            await umCall('updateUser', data, T('บันทึกแล้ว'));
+        }
+    };
+    setTimeout(() => { const i2 = document.getElementById(u ? 'uf-name' : 'uf-name'); if (i2) i2.focus(); }, 50);
+}
+function showTempPassword(title, username, pw) {
+    Swal.fire({
+        title, icon: 'success', confirmButtonColor: '#0e4a38', confirmButtonText: T('เสร็จสิ้น'),
+        html: `<div style="text-align:left;font-size:14px">${T('ส่งข้อมูลนี้ให้ผู้ใช้ (แสดงครั้งเดียว)')}</div>
+            <div class="um-pw"><div><small>${T('ชื่อผู้ใช้')}</small><b>${esc(username)}</b></div><div><small>${T('รหัสผ่านชั่วคราว')}</small><b class="mono">${esc(pw)}</b></div></div>
+            <button type="button" class="btn-ghost" id="um-copy">📋 ${T('คัดลอก')}</button>
+            <div style="text-align:left;font-size:12.5px;color:#6b6b63;margin-top:8px">${T('ผู้ใช้ต้องตั้งรหัสผ่านใหม่ (อย่างน้อย 8 ตัว) ตอนเข้าใช้ครั้งแรก')}</div>`,
+        didOpen: () => { document.getElementById('um-copy').onclick = () => copyText(`RDS\n${T('ชื่อผู้ใช้')}: ${username}\n${T('รหัสผ่านชั่วคราว')}: ${pw}`, T('คัดลอกแล้ว')); }
+    });
+}
+async function resetUserPw(i) {
+    const u = um.users[i]; if (!u) return;
+    const c = await Swal.fire({ title: tf(`รีเซ็ตรหัสผ่านของ ${u.username}?`, `Reset ${u.username}'s password?`), text: T('ระบบจะสร้างรหัสชั่วคราวใหม่ และผู้ใช้ที่ login ค้างอยู่ทุกเครื่องจะถูกออกจากระบบ'), icon: 'warning', showCancelButton: true, confirmButtonColor: '#0e4a38', confirmButtonText: T('รีเซ็ต'), cancelButtonText: T('ยกเลิก'), reverseButtons: true });
+    if (!c.isConfirmed) return;
+    const r = await umCall('resetPassword', { uid: u.uid });
+    if (r) showTempPassword(tf(`รีเซ็ตรหัสผ่านของ ${u.username} แล้ว`, `Password reset for ${u.username}`), u.username, r.tempPassword);
+}
+async function unlockUserUI(i) {
+    const u = um.users[i]; if (!u) return;
+    await umCall('unlockUser', { uid: u.uid }, tf(`ปลดล็อก ${u.username} แล้ว`, `${u.username} unlocked`));
+}
+async function deleteUserUI(i) {
+    const u = um.users[i]; if (!u) return;
+    const c = await Swal.fire({ title: tf(`ลบผู้ใช้ ${u.username}?`, `Delete user ${u.username}?`), text: T('ผู้ใช้นี้จะเข้าสู่ระบบไม่ได้อีก (ประวัติการทำรายการเดิมยังอยู่) — ถ้าแค่พักการใช้งาน ให้ปิดใช้งานแทน'), icon: 'warning', showCancelButton: true, confirmButtonColor: '#d94f4f', confirmButtonText: T('ลบ'), cancelButtonText: T('ยกเลิก'), reverseButtons: true });
+    if (!c.isConfirmed) return;
+    await umCall('deleteUser', { uid: u.uid }, T('ลบผู้ใช้แล้ว'));
+}
+
 function enNameHint(name) {
     const k = String(name || '').trim();
     if (!HAS_THAI.test(k)) return '';
@@ -1856,7 +2264,7 @@ const PRINT_CO = {
 const TH_MONTHS_LONG = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 function thaiLongDate(d) { return d ? `${d.getDate()} ${TH_MONTHS_LONG[d.getMonth()]} ${d.getFullYear() + 543}` : '-'; }
 function canPrint(l) { const k = kindOf(l); return !!l && l.status !== 'CANCELLED' && ['sale', 'trial', 'claim'].includes(k); }
-function printBtnHtml(l) { return canPrint(l) ? `<button class="mini pr" onclick="printDoc('${esc(l.id)}')">🖨️ ${T('พิมพ์')}</button>` : ''; }
+function printBtnHtml(l) { return isAdmin && canPrint(l) ? `<button class="mini pr" onclick="printDoc('${esc(l.id)}')">🖨️ ${T('พิมพ์')}</button>` : ''; }
 
 function printDocHtml(l, copyLabel) {
     const k = kindOf(l), isClaim = k === 'claim', isTrial = l.status === 'PENDING' || l.status === 'RETURNED' || l.typeLabel === 'ส่งทดลองใช้งาน';
@@ -1948,9 +2356,7 @@ function startPrintMode() {
 // v2.6.0 แก้ชื่อ (Admin) — ผู้จัดทำ / ลูกค้า / รุ่นหิน · เปลี่ยนในประวัติเก่าทั้งหมดด้วย
 // ============================================================
 async function apiPost(body) {
-    const b = Object.assign({}, body); if (isAdmin && adminToken) b.token = adminToken;
-    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(b) });
-    return res.json();
+    return callFn('rdsAction', body);
 }
 async function renameData(type, i) {
     const list = type === 'SALE' ? sales : customers;
@@ -1987,7 +2393,8 @@ async function confirmRename(action, payload, label) {
     let r;
     try { r = await apiPost(Object.assign({ action, dryRun: true }, payload)); }
     catch (e) { return Swal.fire(T('แจ้งเตือน'), T('ไม่สามารถเชื่อมต่อได้'), 'error'); }
-    if (r.code === 'unauthorized') { setAdminUI(false); renderAll(); return Swal.fire(T('สิทธิ์ Admin หมดอายุ'), T('กรุณากดรูปกุญแจเพื่อเข้าสู่ระบบ Admin ใหม่ แล้วทำรายการอีกครั้ง'), 'warning'); }
+    if (r.code === 'unauthorized' || r.code === 'must_change_password') { Swal.close(); return handleAuthError(r.code); }
+    if (r.code === 'forbidden') return Swal.fire(T('ทำรายการไม่ได้'), T('บัญชีนี้ดูข้อมูลได้อย่างเดียว (Guest)'), 'info');
     if (r.status !== 'success') return Swal.fire(T('ทำรายการไม่สำเร็จ'), TS(r.message) || T('เกิดข้อผิดพลาด'), 'error');
     const html = `<div style="font-size:15px"><b>${label}</b></div>
         <div style="margin-top:10px">${tf(`จะเปลี่ยนชื่อในประวัติ <b>${fmtN(r.count)}</b> รายการ`, `This will update <b>${fmtN(r.count)}</b> history ${r.count === 1 ? 'entry' : 'entries'}`)}</div>
@@ -2004,8 +2411,9 @@ async function confirmRename(action, payload, label) {
 //   ย่อรูปในเครื่องก่อนส่ง (ด้านยาว 1600px, JPEG) → อัปโหลดทีละรูปหลังบันทึกรายการ → เก็บใน Google Drive
 // ============================================================
 const PHOTO_MAX = 5, PHOTO_DIM = 1600, PHOTO_Q = 0.8;
-function photoThumb(fid, w) { return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fid)}&sz=w${w || 400}`; }
-function photoFull(fid) { return `https://drive.google.com/file/d/${encodeURIComponent(fid)}/view`; }
+// รูปเก่า = รหัสไฟล์ Google Drive · รูปใหม่ (v3) = ลิงก์ Firebase Storage เต็ม
+function photoThumb(fid, w) { return /^https?:/.test(fid) ? fid : `https://drive.google.com/thumbnail?id=${encodeURIComponent(fid)}&sz=w${w || 400}`; }
+function photoFull(fid) { return /^https?:/.test(fid) ? fid : `https://drive.google.com/file/d/${encodeURIComponent(fid)}/view`; }
 function logPhotos(l) { return Array.isArray(l && l.photos) ? l.photos : String((l && l.photos) || '').split(',').filter(Boolean); }
 
 /** ย่อรูปเป็น JPEG data URL — ใช้ canvas (รองรับรูปจากกล้องมือถือที่ใหญ่มาก) */
@@ -2067,7 +2475,7 @@ async function afterClaimUpload(id, photos) {
     else Swal.fire(T('อัปโหลดรูปไม่ครบ'), tf(`บันทึกเคลมแล้ว แต่อัปโหลดรูปไม่สำเร็จ ${photos.length - okN} รูป — กด “📷 เพิ่มรูป” ที่การ์ดเคลมเพื่อลองใหม่`, `The claim was saved, but ${photos.length - okN} photo(s) failed to upload — tap “📷 Add photo” on the claim card to try again`), 'warning');
 }
 /** เพิ่มรูปทีหลังจากการ์ดเคลม */
-function canAddPhoto(l) { return !!l && kindOf(l) === 'claim' && l.status !== 'CANCELLED' && logPhotos(l).length < PHOTO_MAX && (isOpen(l) || isAdmin); }
+function canAddPhoto(l) { return !!l && kindOf(l) === 'claim' && l.status !== 'CANCELLED' && logPhotos(l).length < PHOTO_MAX && isAdmin; }
 function addPhotoLater(id) {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
     inp.onchange = async () => {
@@ -2113,13 +2521,34 @@ function renderPhotoViewer() {
 }
 async function deletePhoto() {
     const l = findLogById(pv.id); const fid = logPhotos(l)[pv.i]; if (!fid) return;
-    const r = await Swal.fire({ title: T('ลบรูปนี้?'), text: T('ไฟล์จะย้ายไปถังขยะของ Google Drive (กู้คืนได้ภายใน 30 วัน)'), icon: 'warning', showCancelButton: true, confirmButtonColor: '#d94f4f', confirmButtonText: T('ลบ'), cancelButtonText: T('ยกเลิก'), reverseButtons: true });
+    const r = await Swal.fire({ title: T('ลบรูปนี้?'), text: /^https?:/.test(fid) ? T('รูปจะถูกลบถาวร') : T('รูปจะถูกเอาออกจากรายการนี้ (ไฟล์เดิมยังอยู่ใน Google Drive)'), icon: 'warning', showCancelButton: true, confirmButtonColor: '#d94f4f', confirmButtonText: T('ลบ'), cancelButtonText: T('ยกเลิก'), reverseButtons: true });
     if (!r.isConfirmed) return;
     closePhotos();
     await syncAction('deleteClaimPhoto', { id: pv.id, fileId: fid }, T('ลบรูปแล้ว'));
 }
 
 // ปิดการซูมบนมือถือ — iPhone ไม่สนใจ user-scalable=no จึงกันการถ่างนิ้วตรงนี้ ส่วนแตะสองครั้งปิดด้วย touch-action ใน CSS
-document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
+['gesturestart', 'gesturechange', 'gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+// ถ่างสองนิ้ว (Android/เบราว์เซอร์ที่ไม่สนใจ viewport) — เลื่อนนิ้วเดียวยังทำงานปกติ
+document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+// ความสูงแถบ Guest — ให้ sidebar ที่ตรึงไว้เริ่มใต้แถบพอดี
+(() => { const gb = document.querySelector('.guest-bar'); if (!gb || !window.ResizeObserver) return;
+    new ResizeObserver(() => document.body.style.setProperty('--gb-h', gb.offsetHeight + 'px')).observe(gb); })();
+// คอมพิวเตอร์: Ctrl/⌘ + ล้อเมาส์ / ถ่างทัชแพด และ Ctrl/⌘ + (+ − 0)
+window.addEventListener('wheel', e => { if (e.ctrlKey || e.metaKey) e.preventDefault(); }, { passive: false });
+window.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && ['+', '=', '-', '_', '0'].includes(e.key)) e.preventDefault(); });
+
+// Guest ดูได้อย่างเดียว — กันทุกคำสั่งที่เปลี่ยนข้อมูลไว้อีกชั้น (ปุ่มถูกซ่อนแล้ว และหลังบ้านตรวจสิทธิ์ซ้ำเสมอ)
+['openSheet', 'startRec', 'submitRec', 'confirmTestToSale', 'returnTestItem', 'closeClaim', 'processStockClaim', 'cancelLog', 'editRemark',
+    'addModel', 'deleteModel', 'editMinStock', 'addData', 'deleteData', 'renameData', 'renameModel', 'editEnName', 'printDoc',
+    'addPhotoLater', 'deletePhoto', 'openSupplierMsg', 'copyReport', 'copyTrials', 'copyWeekly', 'openUserForm', 'resetUserPw', 'deleteUserUI', 'unlockUserUI']
+    .forEach(n => {
+        const f = window[n];
+        if (typeof f !== 'function') return;
+        window[n] = function () {
+            if (!isAdmin) { toast(T('บัญชี Guest ดูข้อมูลได้อย่างเดียว'), 'info'); return; }
+            return f.apply(this, arguments);
+        };
+    });
 
 init();

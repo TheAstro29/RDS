@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>RDS by C2TECH v2.7.3</title>
+    <title>RDS by C2TECH v3.0.0</title>
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#0e4a38" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -17,6 +17,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.5/dist/sweetalert2.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <!-- v3.0.0 Firebase (เรียก Cloud Functions ของ project c2-rds) -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -47,25 +50,26 @@
 
     <header class="top">
         <div class="logo">RDS</div>
-        <div class="t"><b>RDS <span class="ver">v2.7.3</span></b><small>Roller Diamond Stock · by C2TECH</small></div>
+        <div class="t"><b>RDS <span class="ver">v3.0.0</span></b><small>Roller Diamond Stock · by C2TECH</small></div>
         <span class="admin-chip" id="admin-chip" hidden>Admin</span>
         <button class="ibtn hdr-gear" id="hdr-manage" onclick="showPage('manage')" aria-label="ตั้งค่าระบบ" data-en-label="Settings" hidden>⚙️</button>
         <button class="ibtn lang-btn" id="lang-btn" onclick="setLang(LANG === 'en' ? 'th' : 'en')" aria-label="Switch to English">EN</button>
-        <button class="ibtn" id="admin-btn" onclick="toggleAdmin()" aria-label="เข้าสู่ระบบ Admin" data-en-label="Admin sign-in"></button>
         <button class="ibtn" id="main-refresh" onclick="fetchData()" aria-label="รีเฟรชข้อมูล" data-en-label="Refresh data">
             <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" /></svg>
         </button>
+        <button class="ibtn user-btn" id="user-btn" onclick="openUserMenu()" aria-label="บัญชีผู้ใช้" hidden></button>
     </header>
+    <div class="guest-bar" role="note"><span data-en="👁 View-only mode (Guest) — contact Admin to record entries">👁 โหมดดูอย่างเดียว (Guest) — ต้องการบันทึกรายการ ติดต่อ Admin</span></div>
 
     <div class="shell">
         <aside class="side">
-            <button class="newbtn" onclick="openSheet()" data-en="＋ Record entry">＋ บันทึกรายการ</button>
+            <button class="newbtn admin-only" onclick="openSheet()" data-en="＋ Record entry">＋ บันทึกรายการ</button>
             <button class="nitem on" data-nav="exec" onclick="showPage('exec')">📈 Dashboard</button>
             <button class="nitem" data-nav="stock" onclick="showPage('stock')" data-en="📦 Inventory">📦 คลังสินค้า</button>
             <button class="nitem" data-nav="hist" onclick="showPage('hist')" data-en="🕒 History">🕒 ประวัติ</button>
             <button class="nitem" data-nav="dash" onclick="showPage('dash')" data-en="📊 Overview">📊 ภาพรวม</button>
             <button class="nitem" data-nav="manage" id="side-manage" onclick="showPage('manage')" data-en="⚙️ Settings" hidden>⚙️ ตั้งค่าระบบ</button>
-            <div class="foot">RDS by C2TECH · v2.7.3</div>
+            <div class="foot">RDS by C2TECH · v3.0.0</div>
         </aside>
 
         <main>
@@ -81,7 +85,7 @@
     <nav class="bnav" aria-label="เมนูหลัก" data-en-label="Main menu">
         <button class="on" data-nav="exec" onclick="showPage('exec')"><span class="i">📈</span>Dashboard</button>
         <button data-nav="stock" onclick="showPage('stock')"><span class="i">📦</span><span data-en="Stock">คลัง</span></button>
-        <div><div class="fab" role="button" tabindex="0" aria-label="บันทึกรายการ" data-en-label="Record entry" onclick="openSheet()">＋</div></div>
+        <div class="fab-slot"><div class="fab admin-only" role="button" tabindex="0" aria-label="บันทึกรายการ" data-en-label="Record entry" onclick="openSheet()">＋</div></div>
         <button data-nav="hist" onclick="showPage('hist')"><span class="i">🕒</span><span data-en="History">ประวัติ</span></button>
         <button data-nav="dash" onclick="showPage('dash')"><span class="i">📊</span><span data-en="Overview">ภาพรวม</span></button>
     </nav>

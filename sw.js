@@ -1,6 +1,6 @@
-// v2.2.0 — ไฟล์ของแอป (HTML/JS/CSS) โหลดจากเน็ตก่อนเสมอ ได้เวอร์ชันล่าสุดทันทีหลังอัปเดต
+// v3.0.0 (cache v20) · v2.2.0 — ไฟล์ของแอป (HTML/JS/CSS) โหลดจากเน็ตก่อนเสมอ ได้เวอร์ชันล่าสุดทันทีหลังอัปเดต
 // ถ้าออฟไลน์ค่อยใช้ตัวที่เก็บไว้ในเครื่อง ส่วนไลบรารีจาก CDN (ไม่เปลี่ยนบ่อย) ใช้ตัวในเครื่องก่อน
-const CACHE_NAME = 'rds-shell-v18';
+const CACHE_NAME = 'rds-shell-v20';
 const SHELL_FILES = [
   './', './index.html', './style.css', './script.js', './manifest.json', './icons/c2tech-logo.png',
   './assets/icon-192.png', './assets/icon-512.png',
@@ -22,7 +22,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
-  if (req.url.includes('script.google.com') || req.url.includes('googleusercontent.com')) return; // ข้อมูลจริงไม่เก็บแคช
+  if (req.url.includes('script.google.com') || req.url.includes('googleusercontent.com') || req.url.includes('cloudfunctions.net') || req.url.includes('firebasestorage.googleapis.com')) return; // ข้อมูลจริงไม่เก็บแคช
 
   const sameOrigin = new URL(req.url).origin === self.location.origin;
   if (sameOrigin) {
