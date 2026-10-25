@@ -1,6 +1,6 @@
-// v3.0.0 (cache v20) · v2.2.0 — ไฟล์ของแอป (HTML/JS/CSS) โหลดจากเน็ตก่อนเสมอ ได้เวอร์ชันล่าสุดทันทีหลังอัปเดต
+// v3.1.0 (cache v21) · v2.2.0 — ไฟล์ของแอป (HTML/JS/CSS) โหลดจากเน็ตก่อนเสมอ ได้เวอร์ชันล่าสุดทันทีหลังอัปเดต
 // ถ้าออฟไลน์ค่อยใช้ตัวที่เก็บไว้ในเครื่อง ส่วนไลบรารีจาก CDN (ไม่เปลี่ยนบ่อย) ใช้ตัวในเครื่องก่อน
-const CACHE_NAME = 'rds-shell-v20';
+const CACHE_NAME = 'rds-shell-v21';
 const SHELL_FILES = [
   './', './index.html', './style.css', './script.js', './manifest.json', './icons/c2tech-logo.png',
   './assets/icon-192.png', './assets/icon-512.png',

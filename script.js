@@ -10,7 +10,7 @@ const FIREBASE_CONFIG = {
     appId: "1:589327437479:web:83c61386fc68e81454d582"
 };
 const FN_REGION = 'asia-southeast1';
-const APP_VERSION = '3.0.0';
+const APP_VERSION = '3.1.0';
 const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับหลังบ้าน (rds-core.gs)
 const SESSION_KEY = 'rds_session';
 const CACHE_KEY = 'rds_cache';
@@ -30,6 +30,8 @@ let currentPage = 'exec';
 const LANG_KEY = 'rds_lang';
 const LANG = (() => { try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'th'; } catch (e) { return 'th'; } })();
 const EN_DICT = {
+    // ---- v3.1.0 sidebar ----
+    "ย่อเมนู": "Collapse menu", "ขยายเมนู": "Expand menu",
     // ---- v3.0.0 ระบบผู้ใช้ ----
     "โหลดระบบเชื่อมต่อไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วรีเฟรช": "Couldn't load the connection library — check your internet and refresh",
     "บัญชีผู้ใช้": "Account",
@@ -2552,3 +2554,35 @@ window.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && ['+', 
     });
 
 init();
+
+// v3.1.0 Sidebar ย่อ/ขยาย (จอ ≥900px) — ปุ่ม ‹ / › ที่ขอบ, tooltip ชื่อเมนูตอนย่อ, จำสถานะไว้ในเครื่อง
+(() => {
+    const KEY = 'rds.sidebarMini';
+    const side = document.querySelector('.side');
+    if (!side) return;
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'sb-toggle'; btn.innerHTML = '<span aria-hidden="true">‹</span>';
+    document.body.appendChild(btn);
+    const tip = document.createElement('div'); tip.className = 'sb-tip'; document.body.appendChild(tip);
+    const apply = (mini) => {
+        document.body.classList.toggle('sb-mini', mini);
+        const t = mini ? T('ขยายเมนู') : T('ย่อเมนู');
+        btn.setAttribute('aria-label', t); btn.title = t; btn.setAttribute('aria-expanded', String(!mini));
+        tip.classList.remove('on');
+    };
+    let mini = false; try { mini = localStorage.getItem(KEY) === '1'; } catch (e) { }
+    apply(mini);
+    btn.addEventListener('click', () => { mini = !document.body.classList.contains('sb-mini'); apply(mini); try { localStorage.setItem(KEY, mini ? '1' : '0'); } catch (e) { } });
+    side.addEventListener('mouseover', (e) => {
+        if (!document.body.classList.contains('sb-mini')) return;
+        const el = e.target.closest('.nitem, .newbtn'); if (!el) { tip.classList.remove('on'); return; }
+        const text = el.textContent.replace(/^[^\p{L}\p{N}]+/u, '').trim(); if (!text) return;
+        tip.textContent = text;
+        const r = el.getBoundingClientRect();
+        tip.style.left = (side.getBoundingClientRect().right + 10) + 'px';
+        tip.style.top = (r.top + r.height / 2 - tip.offsetHeight / 2) + 'px';
+        tip.classList.add('on');
+    });
+    side.addEventListener('mouseleave', () => tip.classList.remove('on'));
+    side.addEventListener('click', () => tip.classList.remove('on'));
+})();

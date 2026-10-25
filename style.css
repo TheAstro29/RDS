@@ -627,3 +627,35 @@ body.logged-out .top, body.logged-out .shell, body.logged-out .bnav, body.logged
 .um-pw b { font-size: 17px; letter-spacing: .04em; overflow-wrap: anywhere; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 @media (max-width: 480px) { .um-seg { grid-template-columns: 1fr; } .um-pw { grid-template-columns: 1fr; } }
+
+/* ============================================================
+   v3.1.0 Sidebar ย่อ/ขยาย (จอ ≥900px) — ปุ่มวงกลม ‹ / › ที่ขอบ sidebar, ย่อเหลือแต่ไอคอน + tooltip ชื่อเมนู
+   จำสถานะไว้ในเครื่อง (localStorage) · มือถือไม่เปลี่ยน (ใช้แถบเมนูล่างเหมือนเดิม)
+   ============================================================ */
+.sb-toggle { display: none; }
+@media (min-width: 900px) {
+    .side { transition: width .22s ease, padding .22s ease; overflow-x: hidden; }
+    main { transition: margin-left .22s ease; }
+    .sb-toggle { display: grid; place-items: center; position: fixed; z-index: 110; top: calc(var(--top-h) + env(safe-area-inset-top) + var(--gb-h, 0px) - 15px); left: calc(236px - 15px);
+        width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 1px solid #dfe6e2; background: #fff; color: #0f3b2c; font-size: 15px; font-weight: 800; line-height: 1;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .2); cursor: pointer; transition: left .22s ease, background .15s; }
+    .sb-toggle:hover { background: #eaf3ee; }
+    .sb-toggle:focus-visible { outline: 3px solid rgba(18, 163, 122, .4); outline-offset: 2px; }
+    .sb-toggle span { display: block; transition: transform .22s ease; margin-top: -2px; }
+    body.sb-mini .sb-toggle { left: calc(72px - 15px); }
+    body.sb-mini .sb-toggle span { transform: rotate(180deg); }
+    body.logged-out .sb-toggle { display: none; }
+
+    body.sb-mini .side { width: 72px; padding: 16px 10px; }
+    body.sb-mini main { margin-left: 72px; }
+    body.sb-mini .newbtn, body.sb-mini .nitem { font-size: 0; justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
+    body.sb-mini .newbtn::before { content: attr(data-ico); font-size: 22px; font-weight: 800; line-height: 1; }
+    body.sb-mini .nitem::before { content: attr(data-ico); font-size: 19px; line-height: 1; }
+    body.sb-mini .nitem { min-height: 44px; }
+    body.sb-mini .side .foot { display: none; }
+}
+.sb-tip { position: fixed; z-index: 4000; pointer-events: none; background: #10231b; color: #fff; font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 7px; white-space: nowrap;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .25); opacity: 0; transform: translateX(-4px); transition: opacity .12s, transform .12s; }
+.sb-tip.on { opacity: 1; transform: none; }
+.sb-tip::before { content: ""; position: absolute; left: -5px; top: 50%; margin-top: -5px; border: 5px solid transparent; border-left: 0; border-right-color: #10231b; }
+@media (prefers-reduced-motion: reduce) { .side, main, .sb-toggle, .sb-toggle span, .sb-tip { transition: none !important; } }
