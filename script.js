@@ -30,6 +30,8 @@ let currentPage = 'exec';
 const LANG_KEY = 'rds_lang';
 const LANG = (() => { try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'th'; } catch (e) { return 'th'; } })();
 const EN_DICT = {
+    // ---- v3.2.0 สถานะสต็อก ----
+    "หมด": "Out of stock", "หมด / ใกล้หมด": "Out / low stock",
     // ---- v3.1.0 sidebar ----
     "ย่อเมนู": "Collapse menu", "ขยายเมนู": "Expand menu",
     // ---- v3.0.0 ระบบผู้ใช้ ----
@@ -500,6 +502,18 @@ const EN_DICT = {
     "ไม่ได้ตัดสต็อก": "not deducted",
     "📅 ย้อนหลัง": "📅 Backdated"
 };
+/** ป้ายสถานะสต็อก: หมด (แดง + แสงวิ่ง) / ใกล้หมด (ส้ม) */
+function stockPill(g, lead) {
+    if (!g.low) return '';
+    return (lead ? ' ' : '') + (g.out ? `<span class="pill p-out">${T('หมด')}</span>` : `<span class="pill p-low">${T('ใกล้หมด')}</span>`);
+}
+/** ข้อความสรุป "หมด X รุ่น · ใกล้หมด Y รุ่น" */
+function lowSummaryText(list) {
+    const o = list.filter(g => g.out).length, l = list.length - o, parts = [];
+    if (o) parts.push(`${T('หมด')} ${o} ${TP(o, 'รุ่น')}`);
+    if (l) parts.push(`${T('ใกล้หมด')} ${l} ${TP(l, 'รุ่น')}`);
+    return parts.join(' · ');
+}
 function T(th, f) {
     if (LANG !== 'en' || !Object.prototype.hasOwnProperty.call(EN_DICT, th)) return th;
     let s = EN_DICT[th];
@@ -674,7 +688,8 @@ function groupStock() {
     const rate = {};
     (summary && summary.stock || []).forEach(s => { rate[s.key] = s; });
     return Object.values(g).map(x => Object.assign(x, {
-        low: x.newQty <= x.minStock,
+        low: x.newQty <= x.minStock, // ต้องสั่งเพิ่ม (รวมรุ่นที่หมดแล้วด้วย)
+        out: x.newQty <= 0,          // หมด (New เหลือ 0) — แสดงป้ายแดง "หมด" แทน "ใกล้หมด"
         weeklyRate: rate[x.key] ? rate[x.key].weeklyRate : 0,
         weeksLeft: rate[x.key] ? rate[x.key].weeksLeft : null
     }));
@@ -1135,7 +1150,7 @@ function renderDash() {
     const todo = [];
     claims.forEach(c => todo.push(`<div class="todo"><span class="dot" style="background:var(--purple)"></span><div><b>${c.status === 'WAITING_STOCK' ? T('เคลมรอของเข้า') : T('เคลมรอปิดงาน')} · ${esc(U(c.cust))}</b><small>${esc(itemsText(c))} · ${c.days ?? '?'} ${TP(c.days ?? '?', 'วัน')}</small></div>
         ${isAdmin ? `<button class="go" onclick="${c.status === 'WAITING_STOCK' ? `processStockClaim('${esc(c.id)}')` : `closeClaim('${esc(c.id)}')`}">${c.status === 'WAITING_STOCK' ? T('ตัดสต็อก ›') : T('ปิดงาน ›')}</button>` : ''}</div>`));
-    if (low.length) todo.push(`<div class="todo"><span class="dot" style="background:var(--orange)"></span><div><b>${T('ใกล้หมด')} ${low.length} ${TP(low.length, 'รุ่น')}</b><small>${low.map(g => `${esc(g.key)} (${g.newQty})`).join(' · ')}</small></div><button class="go" onclick="stockFilter='low';showPage('stock')">${T('ดูคลัง')} ›</button></div>`);
+    if (low.length) todo.push(`<div class="todo"><span class="dot" style="background:${low.some(g => g.out) ? 'var(--red, #d64545)' : 'var(--orange)'}"></span><div><b>${lowSummaryText(low)}</b><small>${low.map(g => `${esc(g.key)} (${g.out ? T('หมด') : g.newQty})`).join(' · ')}</small></div><button class="go" onclick="stockFilter='low';showPage('stock')">${T('ดูคลัง')} ›</button></div>`);
 
     el.innerHTML = `
     <div class="ptitle"><div><small>${greet} · ${TH_DAYS[now.getDay()]} ${thaiShort(now)}</small><h1>${T('ภาพรวมวันนี้')}</h1></div></div>
@@ -1172,7 +1187,7 @@ function renderDash() {
     </div>
 
     <div class="card"><h2>📦 ${T('สต็อกคงเหลือ')} <button class="more" onclick="showPage('stock')">${T('ดูคลัง')} ›</button></h2>
-        ${groups.map(g => `<div class="list-row"><div class="lr-main"><b>${esc(g.key)} ${g.low ? T('<span class="pill p-low">ใกล้หมด</span>') : ''}</b><small>New ${fmtN(g.newQty)} · Used ${fmtN(g.usedQty)}</small></div><div class="lr-end"><b>${fmtN(g.newQty + g.usedQty)}</b><small>${T('ก้อน')}</small></div></div>`).join('') || T('<div class="empty">ยังไม่มีสินค้า</div>')}
+        ${groups.map(g => `<div class="list-row"><div class="lr-main"><b>${esc(g.key)} ${stockPill(g)}</b><small>New ${fmtN(g.newQty)} · Used ${fmtN(g.usedQty)}</small></div><div class="lr-end"><b>${fmtN(g.newQty + g.usedQty)}</b><small>${T('ก้อน')}</small></div></div>`).join('') || T('<div class="empty">ยังไม่มีสินค้า</div>')}
         ${isAdmin ? `<button class="btn-line" onclick="copyReport()">📋 ${T('คัดลอกรายงานสต็อก ส่ง')} LINE</button>` : ''}
     </div>`;
 }
@@ -1185,7 +1200,7 @@ function renderStock() {
     const el = document.getElementById('page-stock');
     const groups = groupStock();
     const n = groups.reduce((a, g) => a + g.newQty, 0), u = groups.reduce((a, g) => a + g.usedQty, 0);
-    const lowN = groups.filter(g => g.low).length;
+    const lowN = groups.filter(g => g.low).length, outN = groups.filter(g => g.out).length;
     const list = groups.filter(g => g.key.toLowerCase().includes(stockQuery.toLowerCase())).filter(g => stockFilter !== 'low' || g.low);
     // ช่องค้นหาคงไว้ตัวเดิม (เหตุผลเดียวกับหน้าประวัติ — คีย์บอร์ดบนจอไม่ปิดเอง)
     if (!document.getElementById('stock-q')) {
@@ -1206,15 +1221,15 @@ function renderStock() {
         <div><small>New</small><b style="color:var(--primary)">${fmtN(n)}</b></div>
         <div><small>Used</small><b style="color:#a35f12">${fmtN(u)}</b></div>
         <div><small>${T('รวม')}</small><b>${fmtN(n + u)}</b></div>
-        <div class="pc-only"><small>${T('ใกล้หมด')}</small><b style="color:#a35f12">${lowN} ${TP(lowN, 'รุ่น')}</b></div>`;
+        <div class="pc-only"><small>${T('หมด / ใกล้หมด')}</small><b style="color:${outN ? '#c0392b' : '#a35f12'};font-size:${outN && lowN - outN ? '17px' : ''}">${lowN ? lowSummaryText(groups.filter(g => g.low)) : `0 ${TP(0, 'รุ่น')}`}</b></div>`;
     document.getElementById('stock-chips').innerHTML = `
             <button class="chip ${stockFilter !== 'low' ? 'on' : ''}" onclick="stockFilter='all';renderStock()">${T('ทั้งหมด')} <span class="n">${groups.length}</span></button>
-            <button class="chip ${stockFilter === 'low' ? 'on' : ''}" onclick="stockFilter='low';renderStock()"><span class="sw" style="background:var(--orange)"></span>${T('ใกล้หมด')} <span class="n">${lowN}</span></button>`;
+            <button class="chip ${stockFilter === 'low' ? 'on' : ''}" onclick="stockFilter='low';renderStock()"><span class="sw" style="background:var(--orange)"></span>${T('หมด / ใกล้หมด')} <span class="n">${lowN}</span></button>`;
     document.getElementById('stock-grid').innerHTML = `${list.map(g => {
         const pct = Math.min(100, g.minStock > 0 ? g.newQty / (g.minStock * 2.5) * 100 : 100);
         const idx = groups.indexOf(g);
-        return `<button class="scard ${g.low ? 'low' : ''}" onclick="openModelHistory(${idx})">
-            <div class="scard-h"><span class="model">${esc(g.model)}</span><span class="grit">#${esc(g.grit)}</span>${g.low ? T('<span class="pill p-low">ใกล้หมด</span>') : ''}<div class="total"><small>${T('รวม')}</small><b>${fmtN(g.newQty + g.usedQty)}</b></div></div>
+        return `<button class="scard ${g.out ? 'low out' : g.low ? 'low' : ''}" onclick="openModelHistory(${idx})">
+            <div class="scard-h"><span class="model">${esc(g.model)}</span><span class="grit">#${esc(g.grit)}</span>${stockPill(g)}<div class="total"><small>${T('รวม')}</small><b>${fmtN(g.newQty + g.usedQty)}</b></div></div>
             <div class="nu">
                 <div class="new"><span class="lab"><i></i>NEW</span><span class="v">${fmtN(g.newQty)}</span><div class="meter"><i style="width:${pct}%"></i></div>
                     <span class="hint">${g.weeksLeft !== null && g.weeksLeft !== undefined ? `${T('พอขายราว')} ${g.weeksLeft} ${TP(g.weeksLeft, 'สัปดาห์')}` : T('ยังไม่มียอดขาย 4 สัปดาห์')} · ${T('เกณฑ์')} ≤ ${g.minStock}</span></div>
@@ -1771,10 +1786,11 @@ function copyReport() {
     const trials = open.filter(o => o.status === 'PENDING');
     const claims = open.filter(o => o.status === 'WAITING_CLAIM' || o.status === 'WAITING_STOCK');
     const lines = ['📦 สต็อกหินขัด RDS', `ณ วันที่ ${thaiShortTH(now)} เวลา ${thaiTimeTH(now)}`, LINE_RULE,
-        ...groups.map(g => `${g.key} · New ${g.newQty} · Used ${g.usedQty} = ${g.newQty + g.usedQty}${g.low ? ' ⚠️' : ''}`),
+        ...groups.map(g => `${g.key} · New ${g.newQty} · Used ${g.usedQty} = ${g.newQty + g.usedQty}${g.out ? ' ⛔' : g.low ? ' ⚠️' : ''}`),
         LINE_RULE, `รวมทั้งหมด ${n + u} ก้อน (New ${n} · Used ${u})`];
     const tail = [];
-    if (low.length) tail.push(`⚠️ ใกล้หมด : ${low.map(g => g.key).join(', ')}`);
+    if (low.some(g => g.out)) tail.push(`⛔ หมด : ${low.filter(g => g.out).map(g => g.key).join(', ')}`);
+    if (low.some(g => !g.out)) tail.push(`⚠️ ใกล้หมด : ${low.filter(g => !g.out).map(g => g.key).join(', ')}`);
     if (trials.length) tail.push(`🧪 ทดลองค้าง รวม ${trials.length} ราย · นานสุด ${Math.max(...trials.map(t => t.days || 0))} วัน`);
     if (claims.length) tail.push(`🛡️ รอเคลม รวม ${claims.length} ราย`);
     if (tail.length) lines.push('', ...tail);
@@ -1802,7 +1818,8 @@ function copyWeekly() {
     if (overdue.length || low.length) {
         lines.push('', 'ต้องติดตาม');
         if (overdue.length) { lines.push(`• ทดลองเกิน ${TRIAL_ALERT_DAYS} วัน รวม ${overdue.length} ราย`); overdue.slice(0, 5).forEach(o => lines.push(`  ${o.cust} ${o.days} วัน · เริ่ม ${thaiShortTH(logDate(o))} (${o.sale || '-'})`)); }
-        if (low.length) lines.push(`• ใกล้หมด : ${low.map(g => `${g.key} (${g.newQty})`).join(', ')}`);
+        if (low.some(g => g.out)) lines.push(`• หมด : ${low.filter(g => g.out).map(g => g.key).join(', ')}`);
+        if (low.some(g => !g.out)) lines.push(`• ใกล้หมด : ${low.filter(g => !g.out).map(g => `${g.key} (${g.newQty})`).join(', ')}`);
     }
     copyText(lines.join('\n'));
 }
@@ -1836,9 +1853,9 @@ function renderExec() {
         ${isAdmin ? `<button class="btn-ghost" style="margin-left:auto" onclick="copyTrials()">📋 ${T('คัดลอกรายชื่อ ส่ง')} LINE</button>` : ''}</div>${trialCardsHtml(trials, false)}</div>
     <div class="grid2">
         <div class="card"><h2>📦 ${T('สต็อกรายรุ่น')}</h2>
-            ${stock.map(g => `<div class="bar-row"><span>${esc(g.key)}</span><span class="bar"><i class="bar-new" style="width:${g.newQty / maxStock * 100}%"></i><i class="bar-used" style="width:${g.usedQty / maxStock * 100}%"></i></span><span class="num"><b>${fmtN(g.newQty + g.usedQty)}</b>${g.low ? T(' <span class="pill p-low">ใกล้หมด</span>') : ''}</span></div>`).join('') || T('<div class="empty">ยังไม่มีสินค้า</div>')}
+            ${stock.map(g => `<div class="bar-row"><span>${esc(g.key)}</span><span class="bar"><i class="bar-new" style="width:${g.newQty / maxStock * 100}%"></i><i class="bar-used" style="width:${g.usedQty / maxStock * 100}%"></i></span><span class="num"><b>${fmtN(g.newQty + g.usedQty)}</b>${stockPill(g, true)}</span></div>`).join('') || T('<div class="empty">ยังไม่มีสินค้า</div>')}
             <div class="legend"><span><i class="bar-new"></i>New</span><span><i class="bar-used"></i>Used</span></div>
-            ${low.length ? `<div class="notice" style="margin-top:10px">${T('ใกล้หมด')}: ${low.map(g => LANG === 'en' ? `${esc(g.key)}: ${g.newQty} left${g.weeksLeft ? ` (about ${g.weeksLeft} weeks)` : ''}` : `${esc(g.key)} เหลือ ${g.newQty}${g.weeksLeft ? ` (พอขายราว ${g.weeksLeft} สัปดาห์)` : ''}`).join(' · ')}</div>` : ''}
+            ${low.length ? `<div class="notice" style="margin-top:10px">${T('หมด / ใกล้หมด')}: ${low.map(g => g.out ? `${esc(g.key)} ${T('หมด')}` : LANG === 'en' ? `${esc(g.key)}: ${g.newQty} left${g.weeksLeft ? ` (about ${g.weeksLeft} weeks)` : ''}` : `${esc(g.key)} เหลือ ${g.newQty}${g.weeksLeft ? ` (พอขายราว ${g.weeksLeft} สัปดาห์)` : ''}`).join(' · ')}</div>` : ''}
         </div>
         <div class="card"><h2>👤 ${T('ยอดขายตามผู้จัดทำ')} (${T('เดือนนี้')})</h2>
             ${s.bySaleMonth.length ? `<table class="data-table"><tbody>${s.bySaleMonth.map(([k, v]) => `<tr><td>${esc(U(k))}</td><td class="num"><b>${fmtN(v)}</b></td><td class="num muted">${Math.round(v / totalSaleMonth * 100)}%</td></tr>`).join('')}</tbody></table>` : T('<div class="empty">เดือนนี้ยังไม่มียอดขาย</div>')}
@@ -2149,7 +2166,7 @@ function renderSupplierBody() {
         sup.keys = groups.map(g => g.key);
         body.innerHTML = `
         <div class="card sup-card"><h2>${T('จำนวนที่จะสั่ง')}</h2><small class="muted">${T('ระบบแนะนำให้รุ่นที่ใกล้หมด = เกณฑ์ × 3 − New คงเหลือ · แก้ตัวเลขได้')}</small>
-            <div class="sup-rows">${groups.map((g, i) => `<div class="sup-row${g.low ? ' low' : ''}"><span><b>${esc(g.key)}</b><small>New ${g.newQty} · ${T('เกณฑ์')} ${g.minStock}${g.low ? ' · ' + T('ใกล้หมด') : ''}</small></span>
+            <div class="sup-rows">${groups.map((g, i) => `<div class="sup-row${g.low ? ' low' : ''}"><span><b>${esc(g.key)}</b><small>New ${g.newQty} · ${T('เกณฑ์')} ${g.minStock}${g.low ? ' · ' + (g.out ? T('หมด') : T('ใกล้หมด')) : ''}</small></span>
                 <input type="number" inputmode="numeric" min="0" value="${sup.qty[g.key] || 0}" aria-label="${T('จำนวน')} ${esc(g.key)}" oninput="setSupQty(${i}, this.value)"></div>`).join('')}</div>
         </div>
         ${supPreviewHtml()}`;
@@ -2212,7 +2229,7 @@ function supplierText() {
             `RDS Stock Report — ${COMPANY_EN.name}`,
             `As of ${enDate(now)}, ${enTime(now)} (GMT+7)`,
             '',
-            ...groups.map(g => `${g.model} #${g.grit}: New ${g.newQty} · Used ${g.usedQty} = ${g.newQty + g.usedQty} pcs${g.low ? ' (low)' : ''}`),
+            ...groups.map(g => `${g.model} #${g.grit}: New ${g.newQty} · Used ${g.usedQty} = ${g.newQty + g.usedQty} pcs${g.out ? ' (out of stock)' : g.low ? ' (low)' : ''}`),
             '',
             `Total: ${n + u} pcs (New ${n} · Used ${u})`,
             ...(low.length ? [`Low stock: ${low.map(g => g.key).join(', ')}`] : []),
