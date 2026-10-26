@@ -10,7 +10,7 @@ const FIREBASE_CONFIG = {
     appId: "1:589327437479:web:83c61386fc68e81454d582"
 };
 const FN_REGION = 'asia-southeast1';
-const APP_VERSION = '3.1.0';
+const APP_VERSION = '3.2.0';
 const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับหลังบ้าน (rds-core.gs)
 const SESSION_KEY = 'rds_session';
 const CACHE_KEY = 'rds_cache';
@@ -1101,10 +1101,11 @@ function findLogById(id) { return allLogs.find(l => l.id === id) || (summary && 
 function thaiLongDateUI(d) { return !d ? '-' : LANG === 'en' ? thaiShort(d) : `${d.getDate()} ${TH_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`; }
 function trialCardsHtml(trials, withActions) {
     if (!trials.length) return T('<div class="empty">ไม่มีลูกค้าที่ทดลองใช้งานอยู่ตอนนี้ 🎉</div>');
-    return `<div class="trial-list">${trials.map(t => {
+    return `<div class="trial-list">${trials.map((t, i) => {
         const d = t.days ?? daysSince(logDate(t));
         const sent = logDate(t);
-        return `<div class="trial ${d > TRIAL_ALERT_DAYS ? 'over' : ''}">
+        // แสงวิ่งรอบขอบ (สีแดง) เฉพาะรายที่ค้างนานที่สุด 1 ราย — รายการเรียงจากค้างนานสุดอยู่แล้ว
+        return `<div class="trial ${d > TRIAL_ALERT_DAYS ? 'over' : ''}${i === 0 && d > TRIAL_ALERT_DAYS ? ' fx-beam fx-red' : ''}">
             <div class="days ${daysClass(d)}"><b>${d ?? '?'}</b><small>${TP(d ?? '?', 'วัน')}</small></div>
             <div class="who"><b>${esc(U(t.cust))}</b>${isBackdated(t) || isNoStock(t) ? `<div class="tags">${bdPillsHtml(t)}</div>` : ''}
                 <div class="items">${esc(itemsText(t))}</div>
@@ -1160,7 +1161,7 @@ function renderDash() {
     </div>
 
     <div class="grid2">
-        <div class="card"><h2>🔔 ${T('ต้องดำเนินการ')}</h2>${todo.join('') || T('<div class="empty">ไม่มีเรื่องค้าง</div>')}</div>
+        <div class="card${todo.length && claims.length ? ' fx-beam fx-warn' : ''}"><h2>🔔 ${T('ต้องดำเนินการ')}</h2>${todo.join('') || T('<div class="empty">ไม่มีเรื่องค้าง</div>')}</div>
         <div class="card"><h2>📅 ${T('ความเคลื่อนไหววันนี้')} <button class="more" onclick="histState.period='today';showPage('hist')">${T('ดูทั้งหมด')} ›</button></h2>
             ${todayEvents.length ? todayEvents.slice(0, 8).map(ev => {
         if (ev.cancel) return cancelEventRow(ev.l, ev.qty, false);

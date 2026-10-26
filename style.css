@@ -659,3 +659,45 @@ body.logged-out .top, body.logged-out .shell, body.logged-out .bnav, body.logged
 .sb-tip.on { opacity: 1; transform: none; }
 .sb-tip::before { content: ""; position: absolute; left: -5px; top: 50%; margin-top: -5px; border: 5px solid transparent; border-left: 0; border-right-color: #10231b; }
 @media (prefers-reduced-motion: reduce) { .side, main, .sb-toggle, .sb-toggle span, .sb-tip { transition: none !important; } }
+
+/* ============================================================
+   v3.2.0 เอฟเฟกต์แสงวิ่ง
+   ============================================================ */
+/* ---- เอฟเฟกต์แสงวิ่ง (fx-*) — แต่ละแบบมีความหมายเดียว ----
+   beam  = มีงานรอให้กดดำเนินการ · shine = ป้ายสถานะ (ใหม่/ใกล้หมด) · shiny text = แบรนด์ · skeleton = กำลังโหลด
+   หยุดเองเมื่อเครื่องตั้ง "ลดการเคลื่อนไหว" */
+@property --fx-ang { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+@keyframes fx-spin { to { --fx-ang: 360deg; } }
+@keyframes fx-shine { 0% { transform: translateX(-180%) skewX(-20deg); } 45%, 100% { transform: translateX(320%) skewX(-20deg); } }
+@keyframes fx-text { 0% { background-position: 130% 0; } 60%, 100% { background-position: -130% 0; } }
+@keyframes fx-sk { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+.fx-beam { position: relative; isolation: isolate; }
+.fx-beam::before { content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 2px; pointer-events: none; z-index: 2;
+  background: conic-gradient(from var(--fx-ang), transparent 0 68%, var(--fx-c, #2fbf71) 80%, #fff 85%, var(--fx-c, #2fbf71) 90%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: fx-spin 3.6s linear infinite; }
+.fx-beam.fx-warn { --fx-c: #f0a020; }
+.fx-beam.fx-red { --fx-c: #e5484d; }
+.fx-shine { position: relative; overflow: hidden; isolation: isolate; }
+.fx-shine::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 55%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent); transform: translateX(-180%) skewX(-20deg);
+  animation: fx-shine 3.4s ease-in-out infinite; }
+.fx-hover-shine { position: relative; overflow: hidden; }
+.fx-hover-shine::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 45%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent); transform: translateX(-180%) skewX(-20deg); }
+.fx-hover-shine:hover::after { animation: fx-shine .9s ease-out 1; }
+.fx-new { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 800; color: #fff; background: #3F654D; border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: 2px; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .fx-beam::before, .fx-shine::after, .fx-hover-shine::after, .fx-text, .fx-sk { animation: none !important; } }
+/* shine: ป้าย "ใกล้หมด" */
+.pill.p-low { position: relative; overflow: hidden; isolation: isolate; }
+.pill.p-low::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 55%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent); transform: translateX(-180%) skewX(-20deg); animation: fx-shine 3.4s ease-in-out infinite; }
+/* hover shine: ปุ่ม "＋ บันทึกรายการ" */
+.newbtn { position: relative; overflow: hidden; }
+.newbtn::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 45%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); transform: translateX(-180%) skewX(-20deg); }
+.newbtn:hover::after { animation: fx-shine .9s ease-out 1; }
+/* shiny text: "RDS" บนหน้า login */
+.lg-t { background: linear-gradient(110deg, #fff 0%, #fff 42%, #9ff0c8 50%, #fff 58%, #fff 100%); background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: fx-text 4.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .pill.p-low::after, .newbtn::after, .lg-t { animation: none !important; } }
