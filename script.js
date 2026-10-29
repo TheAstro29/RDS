@@ -10,12 +10,13 @@ const FIREBASE_CONFIG = {
     appId: "1:589327437479:web:83c61386fc68e81454d582"
 };
 const FN_REGION = 'asia-southeast1';
-const APP_VERSION = '3.2.0';
+const APP_VERSION = '3.3.0';
 const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับหลังบ้าน (rds-core.gs)
 const SESSION_KEY = 'rds_session';
 const CACHE_KEY = 'rds_cache';
 const DEFAULT_MIN_STOCK = 10;
 const TRIAL_WARN_DAYS = 7, TRIAL_ALERT_DAYS = 14;
+const UNPAID_WARN_DAYS = 15, UNPAID_ALERT_DAYS = 30; // v3.3 ขายแบบรอเก็บเงิน: เหลือง/แดง
 
 let inventory = [], sales = [], customers = [], allLogs = [], summary = null, totalLogs = 0;
 let isAdmin = false, sessionToken = '', me = null;   // me = { uid, name, username, role }
@@ -521,6 +522,32 @@ function T(th, f) {
     return s;
 }
 const EN_ONE = { entries: 'entry', days: 'day', cases: 'case', models: 'model', weeks: 'week' };
+// v3.3 คำแปลของฟีเจอร์ "รอเก็บเงิน"
+Object.assign(EN_DICT, {
+    "รอเก็บเงิน": "Awaiting payment", "ชำระแล้ว": "Paid", "💵 ชำระแล้ว": "💵 Mark paid", "ลูกค้ารอเก็บเงิน": "Awaiting payment",
+    "ขายแล้ว ยังไม่ได้ชำระ · เรียงจากค้างนานที่สุด": "Sold, not paid yet · longest first",
+    "วันขึ้นไปเหลือง": "days+ yellow", "ไม่มียอดค้างเก็บเงิน 🎉": "Nothing awaiting payment 🎉",
+    "ขายเมื่อ": "Sold", "การชำระเงิน": "Payment", "ชำระแล้ว (ปกติ)": "Paid (normal)",
+    "ส่งของแล้ว ยังไม่ได้ชำระ": "Delivered, not paid yet",
+    "ยอดขายนับวันที่ส่งของ · ติดตามเงินได้ที่หน้า งานค้าง › รอเก็บเงิน": "Counted as a sale today · track payment under Tasks › Awaiting payment",
+    "ลูกค้าซื้อแล้ว · ชำระแล้ว": "Bought · paid", "ลูกค้าซื้อแล้ว · รอเก็บเงิน": "Bought · awaiting payment",
+    "ลูกค้าชำระเงินแล้ว?": "Payment received?", "ยืนยันชำระแล้ว": "Confirm paid", "บันทึกการชำระเงินเรียบร้อย": "Marked as paid",
+    "ปิดการขายเรียบร้อย (รอเก็บเงิน)": "Sale closed (awaiting payment)", "ขาย · รอเก็บเงิน": "Sale · awaiting payment",
+    "ชำระเมื่อ": "Paid on", "รายเกิน": "over", "ค้างนานสุด": "longest",
+    "ยอดขายนับวันนี้ เลือกว่าชำระแล้วหรือยัง": "Counted as a sale today — has the customer paid?",
+    "งานค้าง": "Tasks", "เรื่องที่ต้องจัดการ": "to handle", "ไม่มีงานค้าง": "All clear", "ทดลองรอปิด": "Open trials", "เคลมค้าง": "Open claims",
+    "ของใกล้หมด": "Low stock", "ไม่มีเคลมค้าง 🎉": "No open claims 🎉", "สต็อกพอทุกรุ่น 🎉": "All models in stock 🎉", "ขั้นต่ำ": "min",
+    "ร่างข้อความสั่งของ Supplier": "Draft order message to supplier", "ไม่พบรายการที่ตรงกับ": "Nothing matches",
+    "กด “ลูกค้าซื้อแล้ว” เพื่อตัดขาย หรือ “รับคืน” เมื่อได้ของคืน": "Tap “Customer bought” to close as a sale, or “Return” when stones come back",
+    "กด “ชำระแล้ว” เมื่อเก็บเงินได้ — ยอดขายนับไปแล้วตั้งแต่วันที่ขาย": "Tap “Mark paid” once collected — the sale already counts from the sale date",
+    "ปิดงานเมื่อได้หินเสียคืน · เคลมรอของเข้า กดตัดสต็อกเมื่อของมาถึง": "Close when the damaged stones are back · deduct stock when waiting claims arrive",
+    "รุ่นที่ New เหลือถึงเกณฑ์ขั้นต่ำ — ร่างข้อความสั่งของได้จากปุ่มด้านล่าง": "Models at or below minimum New stock — draft an order below",
+    "ค้นหาลูกค้า รุ่น หรือผู้จัดทำ...": "Search customer, model or staff...", "รายงานสต็อก": "Stock report", "รายชื่อทดลอง": "Trial list",
+    "ด่วน": "Urgent", "นับยอดขายวันไหน": "Count the sale on", "วันที่ส่งของ": "Delivery date", "ก่อน": "ago",
+    "แก้สถานะการชำระเงิน": "Edit payment status", "แก้สถานะชำระเงิน": "Edit payment", "ไม่กระทบสต็อกและยอดขาย": "stock and sales are not affected",
+    "แก้สถานะการชำระเงินเรียบร้อย": "Payment status updated", "ไม่มีลูกค้าทดลองค้าง": "No open trials", "และอีก": "and", "ลูกค้าทดลองค้างนานสุด": "Longest open trials",
+    "รอเก็บเงินนานสุด": "Longest awaiting payment", "ทดลองเกิน": "Trials over", "ค้างเก็บเงินเกิน": "Unpaid over", "ใกล้หมด": "low"
+});
 function TP(n, th) { const w = T(th); return LANG === 'en' && Number(String(n).replace(/,/g, '')) === 1 && EN_ONE[w] ? EN_ONE[w] : w; }
 function tf(th, en) { return LANG === 'en' ? en : th; }
 function setLang(l) {
@@ -722,7 +749,9 @@ function statusPill(l) {
     if (k === 'sale') {
         const c = l.closedAt ? new Date(l.closedAt) : null, d = logDate(l);
         const fromTrial = c && d && c - d > 60000;
-        return `<span class="pill p-sale">${T('ขาย', 'r')}${fromTrial ? T(' (จากทดลอง)') : ''}</span>`;
+        const pay = isUnpaid(l) ? `<span class="pill p-unpaid">💵 ${T('รอเก็บเงิน')} · ${daysSince(payDate(l)) ?? '?'} ${TP(daysSince(payDate(l)) ?? '?', 'วัน')}</span>`
+            : l.payment === 'PAID' ? `<span class="pill p-paid">✓ ${T('ชำระแล้ว')}</span>` : '';
+        return `<span class="pill p-sale">${T('ขาย', 'r')}${fromTrial ? T(' (จากทดลอง)') : ''}</span>${pay}`;
     }
     return `<span class="pill p-done">${esc(T(l.typeLabel))}</span>`;
 }
@@ -731,6 +760,14 @@ function qtySign(l) {
     return l.direction === 'IN' ? { s: '+', cls: 'q-in' } : { s: '−', cls: 'q-out' };
 }
 function daysClass(n) { return n > TRIAL_ALERT_DAYS ? 'd-over' : (n > TRIAL_WARN_DAYS ? 'd-warn' : 'd-ok'); }
+// ---- v3.3 ขายแบบรอเก็บเงิน ----
+function isUnpaid(l) { return !!l && l.typeLabel === 'ขายสินค้า' && l.payment === 'UNPAID' && l.status !== 'CANCELLED'; }
+function payDate(l) { const c = l && l.closedAt ? new Date(l.closedAt) : null; return c && !isNaN(c) ? c : logDate(l); }
+function unpaidDaysClass(n) { return n > UNPAID_ALERT_DAYS ? 'd-over' : (n > UNPAID_WARN_DAYS ? 'd-warn' : 'd-ok'); }
+function unpaidItems() {
+    if (summary && Array.isArray(summary.unpaid)) return summary.unpaid;
+    return allLogs.filter(isUnpaid).map(l => Object.assign({}, l, { days: daysSince(payDate(l)) })).sort((a, b) => (b.days || 0) - (a.days || 0));
+}
 
 async function copyText(text, msg) {
     try { await navigator.clipboard.writeText(text); }
@@ -757,12 +794,12 @@ function skRows(n, withAvatar) {
     return Array.from({ length: n }, (_, i) => `<div class="sk-row">${withAvatar === false ? '' : SK('38px', '38px', 'border-radius:12px;flex:none')}
         <div class="sk-col">${SK(`${55 + (i * 17) % 30}%`, '13px')}${SK(`${35 + (i * 23) % 35}%`, '10px')}</div>${SK('34px', '16px', 'flex:none')}</div>`).join('');
 }
-function skKpis(n) { return `<div class="kpis">${Array.from({ length: n }, () => `<div class="kpi sk-kpi">${SK('48%', '10px')}${SK('40%', '22px')}${SK('62%', '10px')}</div>`).join('')}</div>`; }
+function skKpis(n) { return `<div class="kpis${n === 5 ? " kpis5" : ""}">${Array.from({ length: n }, () => `<div class="kpi sk-kpi">${SK('48%', '10px')}${SK('40%', '22px')}${SK('62%', '10px')}</div>`).join('')}</div>`; }
 function skCard(title, body) { return `<div class="card sk-card">${title === false ? '' : SK(title || '42%', '15px', 'margin-bottom:12px')}${body}</div>`; }
 function skTitle(sub) { return `<div class="ptitle sk-title"><div>${sub === false ? '' : SK('140px', '10px', 'margin-bottom:8px')}${SK('190px', '22px')}</div></div>`; }
 function skeletonPage(name) {
-    if (name === 'exec') return `${skTitle()}${skKpis(4)}${skCard('38%', skRows(3))}<div class="grid2">${skCard('', skRows(4, false))}${skCard('', skRows(4, false))}</div>`;
-    if (name === 'dash') return `${skTitle()}${skKpis(4)}<div class="grid2">${skCard('', skRows(3))}${skCard('', skRows(4))}</div>${skCard('', skRows(4, false))}`;
+    if (name === 'exec') return `${skTitle()}${skKpis(5)}${skCard('38%', skRows(3))}<div class="grid2">${skCard('', skRows(4, false))}${skCard('', skRows(4, false))}</div>`;
+    if (name === 'dash') return `${skTitle()}${skCard('', skRows(4))}${skCard('', skRows(3, false))}`;
     if (name === 'stock') return `${skTitle(false)}<div class="stock-sum">${Array.from({ length: 3 }, () => `<div>${SK('40%', '10px')}${SK('55%', '22px', 'margin-top:6px')}</div>`).join('')}</div>
         ${SK('100%', '44px', 'border-radius:16px')}<div class="sgrid">${Array.from({ length: 4 }, () => skCard('', `<div class="sk-nu">${SK('100%', '64px', 'border-radius:12px')}${SK('100%', '64px', 'border-radius:12px')}</div>`)).join('')}</div>`;
     if (name === 'hist') return `${skTitle(false)}${skCard(false, `${SK('100%', '44px', 'border-radius:14px;margin-bottom:10px')}<div class="sk-chips">${SK('64px', '30px', 'border-radius:99px')}${SK('70px', '30px', 'border-radius:99px')}${SK('70px', '30px', 'border-radius:99px')}${SK('80px', '30px', 'border-radius:99px')}</div>`)}
@@ -1085,7 +1122,7 @@ function showPage(name) {
     renderCartBar();
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 }
-function renderAll() { renderPage(currentPage); renderCartBar(); }
+function renderAll() { renderPage(currentPage); renderCartBar(); updateTaskBadge(); }
 function renderPage(name) {
     if (!dataReady) {
         const el = document.getElementById('page-' + name);
@@ -1130,66 +1167,123 @@ function trialCardsHtml(trials, withActions) {
             </div></div>`;
     }).join('')}</div>`;
 }
+function unpaidCardsHtml(list, withActions) {
+    if (!list.length) return T('<div class="empty">ไม่มียอดค้างเก็บเงิน 🎉</div>');
+    return `<div class="trial-list">${list.map((t, i) => {
+        const d = t.days ?? daysSince(payDate(t));
+        return `<div class="trial unpaid ${d > UNPAID_ALERT_DAYS ? 'over' : ''}${i === 0 && d > UNPAID_ALERT_DAYS ? ' fx-beam fx-red' : ''}">
+            <div class="days ${unpaidDaysClass(d)}"><b>${d ?? '?'}</b><small>${TP(d ?? '?', 'วัน')}</small></div>
+            <div class="who"><b>${esc(U(t.cust))}</b>
+                <div class="items">${esc(itemsText(t))}</div>
+                <div class="t-start">📦 ${T('ขายเมื่อ')} <b>${thaiLongDateUI(payDate(t))}</b></div>
+                <small>${T('ผู้จัดทำ')} ${esc(U(t.sale) || '-')}${t.remark ? ' · 📝 ' + esc(U(t.remark)) : ''}</small>
+                ${withActions ? `<div class="acts"><button class="mini pay" onclick="markPaid('${esc(t.id)}')">${T('💵 ชำระแล้ว')}</button>${printBtnHtml(t)}</div>` : ''}
+            </div></div>`;
+    }).join('')}</div>`;
+}
+// ============================================================
+// v3.3 งานค้าง (เดิม "ภาพรวม") — เครื่องมือของ Admin: ทำงานที่ค้างได้จากหน้านี้ ไม่ต้องไปค้นในประวัติ
+// แท็บ: ทดลองรอปิด · รอเก็บเงิน · เคลมค้าง · ของหมด/ใกล้หมด  (+ ปุ่มลัดบันทึกรายการ และความเคลื่อนไหววันนี้)
+// ============================================================
+let dashTab = '', dashQ = '';
+function taskQueues() {
+    const open = openItems();
+    const trials = open.filter(o => o.status === 'PENDING').slice().sort((a, b) => (b.days || 0) - (a.days || 0));
+    const unpaid = unpaidItems();
+    const claims = open.filter(o => o.status === 'WAITING_CLAIM' || o.status === 'WAITING_STOCK').slice().sort((a, b) => (b.days || 0) - (a.days || 0));
+    const low = groupStock().filter(g => g.low).sort((a, b) => (b.out ? 1 : 0) - (a.out ? 1 : 0) || a.newQty - b.newQty);
+    return { trials, unpaid, claims, low, total: trials.length + unpaid.length + claims.length + low.length };
+}
+/** ตัวเลขบนเมนู "งานค้าง" (sidebar + แถบล่าง) */
+function updateTaskBadge() {
+    let n = 0;
+    try { if (dataReady) n = taskQueues().total; } catch (e) { n = 0; }
+    document.querySelectorAll('[data-nav="dash"]').forEach(btn => {
+        let bd = btn.querySelector('.nbadge');
+        if (!n) { if (bd) bd.remove(); return; }
+        if (!bd) { bd = document.createElement('span'); bd.className = 'nbadge'; btn.appendChild(bd); }
+        bd.textContent = n > 99 ? '99+' : n;
+    });
+}
+function claimCardsHtml(list, withActions) {
+    if (!list.length) return T('<div class="empty">ไม่มีเคลมค้าง 🎉</div>');
+    return `<div class="trial-list">${list.map(c => {
+        const wait = c.status === 'WAITING_STOCK';
+        return `<div class="trial claim-c ${wait ? 'over' : ''}">
+            <div class="days ${wait ? 'd-over' : 'd-claim'}"><b>${c.days ?? '?'}</b><small>${TP(c.days ?? '?', 'วัน')}</small></div>
+            <div class="who"><b>${esc(U(c.cust))}</b><div class="tags"><span class="pill ${wait ? 'p-alert' : 'p-claim'}">${wait ? T('เคลม · รอของเข้า') : T('เคลม · รอปิดงาน')}</span></div>
+                <div class="items">${esc(itemsText(c))}</div>
+                <small>${T('ผู้จัดทำ')} ${esc(U(c.sale) || '-')}${c.remark ? ' · 📝 ' + esc(U(c.remark)) : ''}</small>
+                ${withActions ? `<div class="acts">${wait ? `<button class="mini r" onclick="processStockClaim('${esc(c.id)}')">⚡ ${T('ของเข้าแล้ว ตัดสต็อก')}</button>` : `<button class="mini p" onclick="closeClaim('${esc(c.id)}')">📦 ${T('ปิดงานเคลม')}</button>`}${canAddPhoto(c) ? `<button class="mini pr" onclick="addPhotoLater('${esc(c.id)}')">📷 ${T('เพิ่มรูป')}</button>` : ''}${printBtnHtml(c)}</div>` : ''}
+            </div></div>`;
+    }).join('')}</div>`;
+}
+function lowCardsHtml(list, withActions) {
+    if (!list.length) return T('<div class="empty">สต็อกพอทุกรุ่น 🎉</div>');
+    return `<div class="low-list">${list.map(g => `<div class="low-row ${g.out ? 'out' : ''}"><div class="lr-main"><b>${esc(g.key)} ${stockPill(g)}</b>
+        <small>New ${fmtN(g.newQty)} · Used ${fmtN(g.usedQty)} · ${T('ขั้นต่ำ')} ${fmtN(g.minStock)}${g.weeksLeft ? ` · ${tf('พอขายราว ' + g.weeksLeft + ' สัปดาห์', 'about ' + g.weeksLeft + ' weeks left')}` : ''}</small></div>
+        <button class="mini pr" onclick="stockFilter='low';showPage('stock')">${T('ดูคลัง')} ›</button></div>`).join('')}</div>
+        ${withActions ? `<button class="btn-line sup" onclick="openSupplierMsg('restock')">🌐 ${T('ร่างข้อความสั่งของ Supplier')}</button>` : ''}`;
+}
+function dashAlertLabel(k, n) {
+    if (k === 'trial') return tf(`เกิน ${TRIAL_ALERT_DAYS} วัน ${n}`, `${n} over ${TRIAL_ALERT_DAYS}d`);
+    if (k === 'unpaid') return tf(`เกิน ${UNPAID_ALERT_DAYS} วัน ${n}`, `${n} over ${UNPAID_ALERT_DAYS}d`);
+    if (k === 'claim') return tf(`รอของ ${n}`, `${n} awaiting stock`);
+    return tf(`หมด ${n}`, `${n} out`);
+}
 function renderDash() {
     const el = document.getElementById('page-dash');
     const now = new Date();
-    const open = openItems();
-    const trials = open.filter(o => o.status === 'PENDING').slice().sort((a, b) => (b.days || 0) - (a.days || 0));
-    const overdue = trials.filter(t => t.days > TRIAL_ALERT_DAYS);
-    const trialQty = trials.reduce((a, t) => a + Number(t.qty || 0), 0);
-    const claims = open.filter(o => o.status === 'WAITING_CLAIM' || o.status === 'WAITING_STOCK');
-    const groups = groupStock();
-    const low = groups.filter(g => g.low);
-    const m = summary ? summary.month : null;
-    const pct = m && m.lastMonth > 0 ? Math.round((m.thisMonth - m.lastMonth) / m.lastMonth * 100) : null;
-    const nTotal = groups.reduce((a, g) => a + g.newQty, 0), uTotal = groups.reduce((a, g) => a + g.usedQty, 0);
-    const todayEvents = stockEvents(allLogs, l => Number(l.qty || 0)).filter(ev => sameDay(ev.d, now));
+    const qs = taskQueues();
+    const tabs = [
+        ['trial', '🧪', T('ทดลองรอปิด'), qs.trials, qs.trials.filter(t => t.days > TRIAL_ALERT_DAYS).length],
+        ['unpaid', '💵', T('รอเก็บเงิน'), qs.unpaid, qs.unpaid.filter(t => t.days > UNPAID_ALERT_DAYS).length],
+        ['claim', '🛡️', T('เคลมค้าง'), qs.claims, qs.claims.filter(c => c.status === 'WAITING_STOCK').length],
+        ['low', '📦', T('ของใกล้หมด'), qs.low, qs.low.filter(g => g.out).length]
+    ];
+    if (!tabs.some(t => t[0] === dashTab)) dashTab = (tabs.find(t => t[3].length) || tabs[0])[0];
+    const cur = tabs.find(t => t[0] === dashTab);
+    const q = dashQ.trim().toLowerCase();
+    const match = x => !q || [x.cust, x.sale, x.item, x.remark, x.key, U(x.cust)].some(v => String(v || '').toLowerCase().includes(q));
+    const list = cur[3].filter(match);
     const hour = now.getHours();
     const greet = hour < 12 ? T('สวัสดีตอนเช้า') : hour < 17 ? T('สวัสดีตอนบ่าย') : T('สวัสดีตอนเย็น');
-
-    const todo = [];
-    claims.forEach(c => todo.push(`<div class="todo"><span class="dot" style="background:var(--purple)"></span><div><b>${c.status === 'WAITING_STOCK' ? T('เคลมรอของเข้า') : T('เคลมรอปิดงาน')} · ${esc(U(c.cust))}</b><small>${esc(itemsText(c))} · ${c.days ?? '?'} ${TP(c.days ?? '?', 'วัน')}</small></div>
-        ${isAdmin ? `<button class="go" onclick="${c.status === 'WAITING_STOCK' ? `processStockClaim('${esc(c.id)}')` : `closeClaim('${esc(c.id)}')`}">${c.status === 'WAITING_STOCK' ? T('ตัดสต็อก ›') : T('ปิดงาน ›')}</button>` : ''}</div>`));
-    if (low.length) todo.push(`<div class="todo"><span class="dot" style="background:${low.some(g => g.out) ? 'var(--red, #d64545)' : 'var(--orange)'}"></span><div><b>${lowSummaryText(low)}</b><small>${low.map(g => `${esc(g.key)} (${g.out ? T('หมด') : g.newQty})`).join(' · ')}</small></div><button class="go" onclick="stockFilter='low';showPage('stock')">${T('ดูคลัง')} ›</button></div>`);
+    const todayEvents = stockEvents(allLogs, l => Number(l.qty || 0)).filter(ev => sameDay(ev.d, now));
+    const hint = { trial: T('กด “ลูกค้าซื้อแล้ว” เพื่อตัดขาย หรือ “รับคืน” เมื่อได้ของคืน'), unpaid: T('กด “ชำระแล้ว” เมื่อเก็บเงินได้ — ยอดขายนับไปแล้วตั้งแต่วันที่ขาย'),
+        claim: T('ปิดงานเมื่อได้หินเสียคืน · เคลมรอของเข้า กดตัดสต็อกเมื่อของมาถึง'), low: T('รุ่นที่ New เหลือถึงเกณฑ์ขั้นต่ำ — ร่างข้อความสั่งของได้จากปุ่มด้านล่าง') }[dashTab];
+    let body;
+    if (dashTab === 'trial') body = trialCardsHtml(list, isAdmin);
+    else if (dashTab === 'unpaid') body = unpaidCardsHtml(list, isAdmin);
+    else if (dashTab === 'claim') body = claimCardsHtml(list, isAdmin);
+    else body = lowCardsHtml(list, isAdmin);
+    if (q && !list.length) body = `<div class="empty">${T('ไม่พบรายการที่ตรงกับ')} “${esc(dashQ)}”</div>`;
 
     el.innerHTML = `
-    <div class="ptitle"><div><small>${greet} · ${TH_DAYS[now.getDay()]} ${thaiShort(now)}</small><h1>${T('ภาพรวมวันนี้')}</h1></div></div>
-
-    <div class="card trials" id="trial-section">
-        <div class="trials-head">
-            <div class="ic">🧪</div>
-            <div><h2>${T('ลูกค้าทดลองใช้งาน')}</h2><small>${T('เรียงจากค้างนานที่สุด')} · ${TRIAL_WARN_DAYS} ${T('วันขึ้นไปเหลือง')} · ${T('เกิน')} ${TRIAL_ALERT_DAYS} ${T('วันแดง')}</small></div>
-            <div class="trials-stats">
-                <div class="tstat"><b>${trials.length}</b><small>${TP(trials.length, 'ราย')}</small></div>
-                <div class="tstat"><b>${fmtN(trialQty)}</b><small>${T('ก้อน')}</small></div>
-                <div class="tstat ${overdue.length ? 'alert' : ''}"><b>${overdue.length}</b><small>${T('เกิน')} ${TRIAL_ALERT_DAYS} ${TP(TRIAL_ALERT_DAYS, 'วัน')}</small></div>
-            </div>
-        </div>
-        ${trialCardsHtml(trials, isAdmin)}
+    <div class="ptitle"><div><small>${greet} · ${TH_DAYS[now.getDay()]} ${thaiShort(now)}</small><h1>${T('งานค้าง')}</h1></div>
+        <div class="task-total ${qs.total ? '' : 'zero'}"><b>${qs.total}</b><small>${qs.total ? T('เรื่องที่ต้องจัดการ') : T('ไม่มีงานค้าง')}</small></div></div>
+    ${isAdmin ? `<div class="quick">
+        <button onclick="startRec('sale')"><span class="i a-sale">💰</span>${T('ขายสินค้า')}</button>
+        <button onclick="startRec('trial')"><span class="i a-trial">🧪</span>${T('ส่งทดลอง')}</button>
+        <button onclick="startRec('in')"><span class="i a-in">📥</span>${T('รับเข้า')}</button>
+        <button onclick="startRec('claim')"><span class="i a-claim">🛡️</span>${T('เคลมสินค้า')}</button>
+        <button onclick="copyReport()"><span class="i a-line">📋</span>${T('รายงานสต็อก')}</button>
+        <button onclick="copyTrials()"><span class="i a-line">📋</span>${T('รายชื่อทดลอง')}</button>
+    </div>` : ''}
+    <div class="card queue">
+        <div class="qtabs" role="tablist">${tabs.map(([k, ic, label, arr, alert]) => `<button role="tab" aria-selected="${k === dashTab}" class="qtab q-${k} ${k === dashTab ? 'on' : ''}" onclick="dashTab='${k}';renderDash()">
+            <span class="qi">${ic}</span><span class="ql">${label}${alert ? `<span class="qa">${dashAlertLabel(k, alert)}</span>` : ''}</span><b class="qn">${arr.length}</b></button>`).join('')}</div>
+        <div class="qbar"><input id="dash-q" type="search" placeholder="${T('ค้นหาลูกค้า รุ่น หรือผู้จัดทำ...')}" value="${esc(dashQ)}" aria-label="${T('ค้นหา')}"><small>${hint}</small></div>
+        <div class="qbody">${body}</div>
     </div>
-
-    <div class="kpis">
-        <div class="kpi" style="--c:var(--accent)"><small>${T('ขายเดือนนี้')}</small><b>${m ? fmtN(m.thisMonth) : '-'} <span class="u">${T('ก้อน')}</span></b><em class="${pct === null ? 'muted' : (pct >= 0 ? 'up' : 'down')}">${pct === null ? (m ? T('เดือนก่อน ') + fmtN(m.lastMonth) : '') : (pct >= 0 ? '▲ ' : '▼ ') + Math.abs(pct) + T('% จากเดือนก่อน')}</em></div>
-        <div class="kpi" style="--c:var(--orange)"><small>${T('ทดลองอยู่ที่ลูกค้า')}</small><b>${trials.length} <span class="u">${TP(trials.length, 'ราย')}</span></b><em class="${overdue.length ? 'down' : 'muted'}">${overdue.length ? overdue.length + T(' รายเกิน ') + TRIAL_ALERT_DAYS + T(' วัน') : T('ไม่มีค้างนาน')}</em></div>
-        <div class="kpi" style="--c:var(--purple)"><small>${T('รอเคลม')}</small><b>${claims.length} <span class="u">${TP(claims.length, 'ราย')}</span></b><em class="muted">${claims.filter(c => c.status === 'WAITING_STOCK').length} ${T('รายรอของเข้า')}</em></div>
-        <div class="kpi" style="--c:var(--primary)"><small>${T('คงเหลือในคลัง')}</small><b>${fmtN(nTotal + uTotal)} <span class="u">${T('ก้อน')}</span></b><em class="muted">New ${fmtN(nTotal)} · Used ${fmtN(uTotal)}</em></div>
-    </div>
-
-    <div class="grid2">
-        <div class="card${todo.length && claims.length ? ' fx-beam fx-warn' : ''}"><h2>🔔 ${T('ต้องดำเนินการ')}</h2>${todo.join('') || T('<div class="empty">ไม่มีเรื่องค้าง</div>')}</div>
-        <div class="card"><h2>📅 ${T('ความเคลื่อนไหววันนี้')} <button class="more" onclick="histState.period='today';showPage('hist')">${T('ดูทั้งหมด')} ›</button></h2>
-            ${todayEvents.length ? todayEvents.slice(0, 8).map(ev => {
+    <div class="card"><h2>📅 ${T('ความเคลื่อนไหววันนี้')} <button class="more" onclick="histState.period='today';showPage('hist')">${T('ดูทั้งหมด')} ›</button></h2>
+        ${todayEvents.length ? todayEvents.slice(0, 8).map(ev => {
         if (ev.cancel) return cancelEventRow(ev.l, ev.qty, false);
-        const l = ev.l, q = origSign(l), k = l.status === 'CANCELLED' ? 'cancel' : kindOf(l);
-        return `<div class="list-row"><div class="avatar a-${k}">${KIND_ICON[k]}</div><div class="lr-main"><b>${esc(U(l.cust))}</b><small>${esc(itemsText(l))}</small></div><div class="lr-end"><b class="${q.cls}">${q.s}${fmtN(l.qty)}</b><small>${thaiTime(logDate(l))}</small></div></div>`;
+        const l = ev.l, qq = origSign(l), k = l.status === 'CANCELLED' ? 'cancel' : kindOf(l);
+        return `<div class="list-row"><div class="avatar a-${k}">${KIND_ICON[k]}</div><div class="lr-main"><b>${esc(U(l.cust))}</b><small>${esc(itemsText(l))}</small></div><div class="lr-end"><b class="${qq.cls}">${qq.s}${fmtN(l.qty)}</b><small>${thaiTime(logDate(l))}</small></div></div>`;
     }).join('') : T('<div class="empty">วันนี้ยังไม่มีรายการ</div>')}
-        </div>
-    </div>
-
-    <div class="card"><h2>📦 ${T('สต็อกคงเหลือ')} <button class="more" onclick="showPage('stock')">${T('ดูคลัง')} ›</button></h2>
-        ${groups.map(g => `<div class="list-row"><div class="lr-main"><b>${esc(g.key)} ${stockPill(g)}</b><small>New ${fmtN(g.newQty)} · Used ${fmtN(g.usedQty)}</small></div><div class="lr-end"><b>${fmtN(g.newQty + g.usedQty)}</b><small>${T('ก้อน')}</small></div></div>`).join('') || T('<div class="empty">ยังไม่มีสินค้า</div>')}
-        ${isAdmin ? `<button class="btn-line" onclick="copyReport()">📋 ${T('คัดลอกรายงานสต็อก ส่ง')} LINE</button>` : ''}
     </div>`;
+    const qi = document.getElementById('dash-q');
+    qi.addEventListener('input', e => { dashQ = e.target.value; const pos = e.target.selectionStart; renderDash(); const n = document.getElementById('dash-q'); n.focus(); try { n.setSelectionRange(pos, pos); } catch (er) { } });
 }
 
 // ============================================================
@@ -1292,7 +1386,7 @@ const histState = { kind: 'all', period: 'all', date: '', seller: 'all', q: '', 
 const isBackdated = l => !!(l && l.recordedAt);
 const isNoStock = l => !!(l && l.stockMode === 'NOSTOCK');
 const KIND_FILTERS = [['all', T('ทั้งหมด'), ''], ['sale', T('ขาย'), 'var(--red)'], ['in', T('รับเข้า'), 'var(--accent)'], ['trial', T('ทดลอง'), 'var(--orange)'],
-    ['claim', T('เคลม'), 'var(--purple)'], ['open', T('ค้างดำเนินการ'), 'var(--rose)'], ['cancel', T('ยกเลิก'), '#9aa39f'], ['bd', T('📅 ย้อนหลัง'), '']];
+    ['claim', T('เคลม'), 'var(--purple)'], ['open', T('ค้างดำเนินการ'), 'var(--rose)'], ['unpaid', T('รอเก็บเงิน'), 'var(--pay)'], ['cancel', T('ยกเลิก'), '#9aa39f'], ['bd', T('📅 ย้อนหลัง'), '']];
 
 // ============================================================
 // v2.7.1 การยกเลิกรายการ — การ์ดย้ายไปอยู่วันที่ยกเลิก + บรรทัด "คืนสต็อก" ใน log สต็อก
@@ -1357,7 +1451,7 @@ function histBaseFilter(l) {
     }
     return true;
 }
-function kindMatch(l, k) { return k === 'all' ? true : k === 'open' ? isOpen(l) : k === 'bd' ? isBackdated(l) : kindOf(l) === k; }
+function kindMatch(l, k) { return k === 'all' ? true : k === 'open' ? isOpen(l) : k === 'unpaid' ? isUnpaid(l) : k === 'bd' ? isBackdated(l) : kindOf(l) === k; }
 function bdPillsHtml(l) {
     return (isBackdated(l) ? T('<span class="pill p-bd">📅 ย้อนหลัง</span>') : '') + (isNoStock(l) ? `<span class="pill p-nost">${l.direction === 'IN' || String(l.typeLabel).startsWith('รับ') ? T('ไม่เพิ่มสต็อก') : T('ไม่ตัดสต็อก')}</span>` : '');
 }
@@ -1434,12 +1528,14 @@ function histRowHtml(l) {
     const acts = [];
     if (!isAdmin) { /* Guest: ดูอย่างเดียว ไม่มีปุ่มทำรายการ */ }
     else if (l.status === 'PENDING') acts.push(`<button class="mini g" onclick="confirmTestToSale('${id}')">💰 ${T('ลูกค้าซื้อแล้ว')}</button><button class="mini s" onclick="returnTestItem('${id}')">🔄 ${T('รับคืน')}</button>`);
+    if (isAdmin && isUnpaid(l)) acts.push(`<button class="mini pay" onclick="markPaid('${id}')">${T('💵 ชำระแล้ว')}</button>`);
     if (isAdmin && l.status === 'WAITING_CLAIM') acts.push(`<button class="mini p" onclick="closeClaim('${id}')">📦 ${T('ปิดงานเคลม')}</button>`);
     if (isAdmin && l.status === 'WAITING_STOCK') acts.push(`<button class="mini r" onclick="processStockClaim('${id}')">⚡ ${T('ของเข้าแล้ว ตัดสต็อก')}</button>`);
     if (canAddPhoto(l)) acts.push(`<button class="mini pr" onclick="addPhotoLater('${id}')">📷 ${T('เพิ่มรูป')}</button>`);
     if (isAdmin && canPrint(l)) acts.push(printBtnHtml(l));
     if (isAdmin && l.status !== 'CANCELLED') {
         acts.push(`<button class="link" onclick="editRemark('${id}')">${T('แก้หมายเหตุ')}</button>`);
+        if (kindOf(l) === 'sale') acts.push(`<button class="link pay" onclick="editPayment('${id}')">${T('แก้สถานะชำระเงิน')}</button>`);
         if (!['RETURNED', 'CLAIMED'].includes(l.status)) acts.push(`<button class="link danger" onclick="cancelLog('${id}')">${T('ยกเลิกรายการ')}</button>`);
     }
     return `<div class="hrow ${k === 'cancel' ? 'cancelled' : ''}">
@@ -1509,7 +1605,7 @@ async function renderCustomerCard(text) {
 // ============================================================
 const REC_TYPES = LANG === 'en' ? { sale: 'Sale', trial: 'Trial', in: 'Receipt', claim: 'Claim' } : { sale: 'ขายสินค้า', trial: 'ส่งทดลอง', in: 'รับเข้า', claim: 'เคลม' };
 const REC_SHORT = { sale: T('ขาย'), trial: T('ทดลอง'), in: T('รับเข้า'), claim: T('เคลม') };
-const rec = { type: 'sale', cond: 'New', cart: {}, cust: '', sale: '', remark: '', cartOpen: false, photos: [],
+const rec = { type: 'sale', cond: 'New', cart: {}, cust: '', sale: '', remark: '', cartOpen: false, photos: [], payment: 'PAID',
     // บันทึกย้อนหลัง (v2.4): on = เลือก "ย้อนหลัง", noStock = ไม่ตัด/เพิ่มสต็อก (Admin เท่านั้น)
     bd: { on: false, date: '', time: '', reason: '', noStock: false } };
 function bdIsoDate(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
@@ -1614,7 +1710,7 @@ function renderRec() {
         ${bdActive() ? `<div class="cart-bd">${esc(bdLabel())}${rec.bd.reason.trim() ? T('<br>เหตุผล: ') + esc(rec.bd.reason.trim()) : ''}</div>` : ''}
         ${shortClaim ? T('<div class="notice" style="margin-top:8px">มีรุ่นที่ของไม่พอ ระบบจะบันทึกเคลมนี้เป็น “รอของเข้า” ยังไม่ตัดสต็อก</div>') : ''}
         <div class="field" style="margin-top:12px"><label for="rec-remark${cls}">${T('หมายเหตุ')}</label><input id="rec-remark${cls}" value="${esc(rec.remark)}" placeholder="${rec.type === 'claim' ? T('อาการเสีย หรือข้อมูลเพิ่มเติม') : T('เช่น ส่งพร้อมใบกำกับ')}" oninput="rec.remark=this.value"></div>
-        <button class="confirm" ${items.length ? '' : 'disabled'} onclick="submitRec()">✅ ${T('ยืนยัน', 'r')}${REC_TYPES[rec.type]}${bdActive() ? T(' (ย้อนหลัง)') : ''}${total ? ' ' + fmtN(total) + T(' ก้อน') : ''}</button>
+        <button class="confirm" ${items.length ? '' : 'disabled'} onclick="submitRec()">✅ ${T('ยืนยัน', 'r')}${REC_TYPES[rec.type]}${rec.type === 'sale' && rec.payment === 'UNPAID' ? ' · ' + T('รอเก็บเงิน') : ''}${bdActive() ? T(' (ย้อนหลัง)') : ''}${total ? ' ' + fmtN(total) + T(' ก้อน') : ''}</button>
     </div>`;
     el.innerHTML = `
     <div class="rec-head"><button class="back" onclick="showPage('dash')" aria-label="${T('กลับ')}">‹</button><div><small class="muted">${T('บันทึกรายการ')}</small><h1 style="margin:0;font-size:20px;color:var(--primary)">${REC_TYPES[rec.type]}</h1></div></div>
@@ -1624,6 +1720,10 @@ function renderRec() {
         <div class="field"><label for="rec-cust">${rec.type === 'in' ? T('รับจาก (Supplier / ลูกค้าที่คืน)') : T('ลูกค้า / โรงสี')}</label><input id="rec-cust" value="${esc(rec.cust)}" placeholder="${T('พิมพ์ชื่อ...')}" autocomplete="off" oninput="handleCustomerInput(this, event)"><datalist id="cust-list">${customers.map(c => `<option value="${esc(c)}">`).join('')}</datalist></div>
         <div class="field"><label for="rec-sale">${T('ผู้จัดทำ')}</label><select id="rec-sale" onchange="rec.sale=this.value">${sales.map(s => `<option value="${esc(s)}" ${rec.sale === s ? 'selected' : ''}>${esc(U(s))}</option>`).join('')}</select></div>
     </div>
+    ${rec.type === 'sale' ? `<div class="payseg" role="radiogroup" aria-label="${T('การชำระเงิน')}"><span class="lab">${T('การชำระเงิน')}</span>
+        <button role="radio" aria-checked="${rec.payment !== 'UNPAID'}" class="${rec.payment !== 'UNPAID' ? 'on' : ''}" onclick="rec.payment='PAID';renderRec()">✓ ${T('ชำระแล้ว')}</button>
+        <button role="radio" aria-checked="${rec.payment === 'UNPAID'}" class="${rec.payment === 'UNPAID' ? 'on unpaid' : ''}" onclick="rec.payment='UNPAID';renderRec()">💵 ${T('รอเก็บเงิน')}</button></div>
+        ${rec.payment === 'UNPAID' ? `<div class="notice pay-note">${T('ยอดขายนับวันที่ส่งของ · ติดตามเงินได้ที่หน้า งานค้าง › รอเก็บเงิน')}</div>` : ''}` : ''}
     ${rec.type === 'trial' ? T('<div class="notice">ส่งทดลองหลายรุ่นในครั้งเดียวได้ · ตอนปิดงานจะปิดทั้งรายการ (ลูกค้าซื้อทั้งหมด หรือคืนทั้งหมด)</div>') : ''}
     ${rec.type === 'in' && rec.cond === 'Used' ? T('<div class="notice">รับคืนเป็น Used — ถ้าเป็นของทดลองที่ลูกค้าคืน ให้กด “รับคืน” ที่รายการทดลองแทน สต็อกจะไม่ซ้ำ</div>') : ''}
     ${rec.type === 'claim' ? photoPickerHtml() : ''}
@@ -1702,17 +1802,18 @@ async function submitRec() {
     const bdHtml = backdate ? `<div class="cart-bd" style="margin-top:8px"><b>${esc(bdLabel())}</b><br>${T('เหตุผล')}: ${esc(backdate.reason)}<br>${noStock ? T('จำนวนคงเหลือ<b>ไม่เปลี่ยน</b>') : (rec.type === 'in' ? T('เพิ่มเข้าคลังตอนบันทึก') : T('ตัดสต็อกตอนบันทึก'))}</div>` : '';
     const ok = await Swal.fire({
         title: `${T('ยืนยัน', 'r')}${REC_TYPES[rec.type]}${backdate ? T(' (ย้อนหลัง)') : ''}?`, icon: 'question',
-        html: `<div style="text-align:left;font-size:14px"><b>${esc(U(cust))}</b> · ${T('ผู้จัดทำ')} ${esc(U(rec.sale) || '-')}<br>${items.map(([k, v]) => { const p = keyParts(k); return `• ${esc(p.model)} #${esc(p.grit)} ${esc(p.cond)} × ${v}`; }).join('<br>')}<br><b>${T('รวม')} ${fmtN(total)} ${T('ก้อน')}</b>${direction === 'NONE' && !noStock ? T('<br><small>ของไม่พอ — บันทึกเป็นรอของเข้า</small>') : ''}${bdHtml}</div>`,
+        html: `<div style="text-align:left;font-size:14px"><b>${esc(U(cust))}</b> · ${T('ผู้จัดทำ')} ${esc(U(rec.sale) || '-')}<br>${items.map(([k, v]) => { const p = keyParts(k); return `• ${esc(p.model)} #${esc(p.grit)} ${esc(p.cond)} × ${v}`; }).join('<br>')}<br><b>${T('รวม')} ${fmtN(total)} ${T('ก้อน')}</b>${rec.type === 'sale' ? `<br>${T('การชำระเงิน')}: <b>${rec.payment === 'UNPAID' ? '💵 ' + T('ส่งของแล้ว ยังไม่ได้ชำระ') : '✓ ' + T('ชำระแล้ว')}</b>` : ''}${direction === 'NONE' && !noStock ? T('<br><small>ของไม่พอ — บันทึกเป็นรอของเข้า</small>') : ''}${bdHtml}</div>`,
         showCancelButton: true, confirmButtonColor: '#12a37a', confirmButtonText: T('บันทึก'), cancelButtonText: T('แก้ไข')
     });
     if (!ok.isConfirmed) return;
-    const done = await syncAction('addMultiLogs', { data: [{ sale: rec.sale, cust, typeLabel, direction, item: itemStr, qty: total, remark: (rec.remark || '').trim(), backdate, photoCount: rec.type === 'claim' ? rec.photos.length : 0 }] }, (LANG === 'en' ? `${REC_TYPES[rec.type]}${backdate ? ' (backdated)' : ''} saved` : `บันทึก${REC_TYPES[rec.type]}${backdate ? 'ย้อนหลัง' : ''}เรียบร้อย`));
+    const done = await syncAction('addMultiLogs', { data: [{ sale: rec.sale, cust, typeLabel, direction, item: itemStr, qty: total, remark: (rec.remark || '').trim(), backdate, photoCount: rec.type === 'claim' ? rec.photos.length : 0, payment: rec.type === 'sale' && rec.payment === 'UNPAID' ? 'UNPAID' : '' }] }, (LANG === 'en' ? `${REC_TYPES[rec.type]}${backdate ? ' (backdated)' : ''} saved` : `บันทึก${REC_TYPES[rec.type]}${backdate ? 'ย้อนหลัง' : ''}เรียบร้อย`));
     if (done) {
         const photos = rec.type === 'claim' ? rec.photos.slice() : [];
         const newId = done.ids && done.ids[0];
-        rec.cart = {}; rec.cust = ''; rec.remark = ''; rec.cartOpen = false; rec.photos = [];
+        const wasUnpaid = rec.type === 'sale' && rec.payment === 'UNPAID';
+        rec.cart = {}; rec.cust = ''; rec.remark = ''; rec.cartOpen = false; rec.photos = []; rec.payment = 'PAID';
         rec.bd = { on: false, date: '', time: '', reason: '', noStock: false };
-        showPage(rec.type === 'trial' ? 'dash' : 'hist');
+        showPage(rec.type === 'trial' || wasUnpaid ? 'dash' : 'hist');
         if (photos.length && newId) await afterClaimUpload(newId, photos);
     }
 }
@@ -1722,9 +1823,38 @@ async function submitRec() {
 // ============================================================
 async function confirmTestToSale(id) {
     const l = findLogById(id); if (!l) return Swal.fire(T('ไม่พบรายการนี้'), T('กรุณารีเฟรชแล้วลองใหม่'), 'error');
-    const r = await Swal.fire({ title: T('ลูกค้าตกลงซื้อแล้ว?'), html: `${T('ปิดการขาย')} <b>${esc(itemsText(l, ', '))}</b><br>${T('ให้')} ${esc(U(l.cust))} (${T('ยอดขายนับวันนี้')})`, icon: 'question',
-        showCancelButton: true, confirmButtonColor: '#0e4a38', confirmButtonText: T('ยืนยันขาย'), cancelButtonText: T('ยกเลิก') });
-    if (r.isConfirmed) await syncAction('confirmTestToSale', { id }, T('ปิดการขายเรียบร้อย'));
+    // v3.3 เลือกได้ว่าชำระแล้ว หรือยังรอเก็บเงิน + (ทดลองเก่า) เลือกนับยอดขายวันที่ส่งของเดิมได้
+    const sent = logDate(l), days = daysSince(sent);
+    const canBack = sent && days >= 1;
+    const opts = { title: T('ลูกค้าตกลงซื้อแล้ว?'), icon: 'question',
+        html: `${T('ปิดการขาย')} <b>${esc(itemsText(l, ', '))}</b><br>${T('ให้')} ${esc(U(l.cust))}${canBack ? `<div class="sw-note">${T('นับยอดขายวันไหน')}</div>` : `<br><small>${T('ยอดขายนับวันนี้ เลือกว่าชำระแล้วหรือยัง')}</small>`}`,
+        showCancelButton: true, showDenyButton: true, confirmButtonColor: '#0e4a38', denyButtonColor: '#2f6fd1',
+        confirmButtonText: '✓ ' + T('ลูกค้าซื้อแล้ว · ชำระแล้ว'), denyButtonText: '💵 ' + T('ลูกค้าซื้อแล้ว · รอเก็บเงิน'), cancelButtonText: T('ยกเลิก') };
+    if (canBack) Object.assign(opts, { input: 'radio', inputValue: 'today', returnInputValueOnDeny: true,
+        inputOptions: { today: `${T('วันนี้')} (${thaiLongDateUI(new Date())})`, sent: `${T('วันที่ส่งของ')} (${thaiLongDateUI(sent)} · ${days} ${TP(days, 'วัน')}${T('ก่อน', 'l')})` } });
+    const r = await Swal.fire(opts);
+    if (!r.isConfirmed && !r.isDenied) return;
+    const saleDate = canBack && r.value === 'sent' ? 'sent' : '';
+    if (r.isConfirmed) await syncAction('confirmTestToSale', { id, saleDate }, T('ปิดการขายเรียบร้อย'));
+    else await syncAction('confirmTestToSale', { id, unpaid: true, saleDate }, T('ปิดการขายเรียบร้อย (รอเก็บเงิน)'));
+}
+async function editPayment(id) {
+    const l = findLogById(id); if (!l) return Swal.fire(T('ไม่พบรายการนี้'), T('กรุณารีเฟรชแล้วลองใหม่'), 'error');
+    const cur = l.payment === 'UNPAID' ? 'UNPAID' : 'PAID';
+    const r = await Swal.fire({ title: T('แก้สถานะการชำระเงิน'), icon: 'info',
+        html: `<b>${esc(U(l.cust))}</b><br>${esc(itemsText(l, ', '))}<br><small>${T('ขายเมื่อ')} ${thaiLongDateUI(payDate(l))} · ${T('ไม่กระทบสต็อกและยอดขาย')}</small>`,
+        input: 'radio', inputValue: cur, inputOptions: { PAID: '✓ ' + T('ชำระแล้ว'), UNPAID: '💵 ' + T('รอเก็บเงิน') },
+        showCancelButton: true, confirmButtonColor: '#2f6fd1', confirmButtonText: T('บันทึก'), cancelButtonText: T('ยกเลิก') });
+    if (!r.isConfirmed || r.value === cur) return;
+    await syncAction('setPayment', { id, payment: r.value }, T('แก้สถานะการชำระเงินเรียบร้อย'));
+}
+async function markPaid(id) {
+    const l = findLogById(id) || unpaidItems().find(x => x.id === id); if (!l) return Swal.fire(T('ไม่พบรายการนี้'), T('กรุณารีเฟรชแล้วลองใหม่'), 'error');
+    const d = daysSince(payDate(l));
+    const r = await Swal.fire({ title: T('ลูกค้าชำระเงินแล้ว?'), icon: 'question',
+        html: `<b>${esc(U(l.cust))}</b><br>${esc(itemsText(l, ', '))}<br><small>${T('ขายเมื่อ')} ${thaiLongDateUI(payDate(l))}${d === null ? '' : ` · ${T('รอเก็บเงิน')} ${d} ${TP(d, 'วัน')}`}</small>`,
+        showCancelButton: true, confirmButtonColor: '#2f6fd1', confirmButtonText: T('ยืนยันชำระแล้ว'), cancelButtonText: T('ยกเลิก') });
+    if (r.isConfirmed) await syncAction('markPaid', { id }, T('บันทึกการชำระเงินเรียบร้อย'));
 }
 async function returnTestItem(id) {
     const l = findLogById(id); if (!l) return Swal.fire(T('ไม่พบรายการนี้'), T('กรุณารีเฟรชแล้วลองใหม่'), 'error');
@@ -1793,6 +1923,8 @@ function copyReport() {
     if (low.some(g => !g.out)) tail.push(`⚠️ ใกล้หมด : ${low.filter(g => !g.out).map(g => g.key).join(', ')}`);
     if (trials.length) tail.push(`🧪 ทดลองค้าง รวม ${trials.length} ราย · นานสุด ${Math.max(...trials.map(t => t.days || 0))} วัน`);
     if (claims.length) tail.push(`🛡️ รอเคลม รวม ${claims.length} ราย`);
+    const unp = unpaidItems();
+    if (unp.length) tail.push(`💵 รอเก็บเงิน รวม ${unp.length} ราย · นานสุด ${Math.max(...unp.map(t => t.days || 0))} วัน`);
     if (tail.length) lines.push('', ...tail);
     copyText(lines.join('\n'));
 }
@@ -1808,6 +1940,7 @@ function copyWeekly() {
     const pct = w.salePrev > 0 ? Math.round((w.sale - w.salePrev) / w.salePrev * 100) : null;
     const trend = pct === null ? '' : (pct >= 0 ? ` (▲ ${pct}% จากสัปดาห์ก่อน)` : ` (▼ ${Math.abs(pct)}% จากสัปดาห์ก่อน)`);
     const overdue = s.open.filter(o => o.status === 'PENDING' && o.days > TRIAL_ALERT_DAYS);
+    const unp = s.unpaid || [], unpOver = unp.filter(o => o.days > UNPAID_ALERT_DAYS);
     const low = s.stock.filter(g => g.low);
     const lines = ['📊 สรุปสัปดาห์ RDS', `ช่วงวันที่ ${thaiShortTH(new Date(w.from))} – ${thaiShortTH(new Date(w.to))}`, LINE_RULE,
         `ขาย ${w.sale} ก้อน${trend}`, `ส่งทดลอง ${w.trialSent} ก้อน · ปิดเป็นขาย ${w.trialConverted}`, `รับเข้า ${w.inQty} ก้อน · เคลม ${w.claimQty} ก้อน`];
@@ -1815,8 +1948,10 @@ function copyWeekly() {
     if (w.topModel) lines.push(`ขายดีสุด : ${w.topModel[0]} (${w.topModel[1]} ก้อน)`);
     if (w.topSale) lines.push(`ผู้จัดทำยอดสูงสุด : ${w.topSale[0]} (${w.topSale[1]} ก้อน)`);
     lines.push('', `คงเหลือในคลัง รวมทั้งหมด ${s.stockTotal.n + s.stockTotal.u} ก้อน (New ${s.stockTotal.n} · Used ${s.stockTotal.u})`);
-    if (overdue.length || low.length) {
+    if (unp.length) lines.push(`รอเก็บเงิน ${unp.length} ราย · ${unp.reduce((a, o) => a + Number(o.qty || 0), 0)} ก้อน`);
+    if (overdue.length || low.length || unpOver.length) {
         lines.push('', 'ต้องติดตาม');
+        if (unpOver.length) { lines.push(`• ค้างเก็บเงินเกิน ${UNPAID_ALERT_DAYS} วัน รวม ${unpOver.length} ราย`); unpOver.slice(0, 5).forEach(o => lines.push(`  ${o.cust} ${o.days} วัน · ขายเมื่อ ${thaiShortTH(payDate(o))} (${o.sale || '-'})`)); }
         if (overdue.length) { lines.push(`• ทดลองเกิน ${TRIAL_ALERT_DAYS} วัน รวม ${overdue.length} ราย`); overdue.slice(0, 5).forEach(o => lines.push(`  ${o.cust} ${o.days} วัน · เริ่ม ${thaiShortTH(logDate(o))} (${o.sale || '-'})`)); }
         if (low.some(g => g.out)) lines.push(`• หมด : ${low.filter(g => g.out).map(g => g.key).join(', ')}`);
         if (low.some(g => !g.out)) lines.push(`• ใกล้หมด : ${low.filter(g => !g.out).map(g => `${g.key} (${g.newQty})`).join(', ')}`);
@@ -1829,43 +1964,62 @@ function copyWeekly() {
 // ============================================================
 let _chartTrend = null, _chartModels = null;
 const CHART_COLORS = ['#12a37a', '#e08a3c', '#7c5cd4', '#d94f4f', '#0e4a38', '#4fd8a6'];
+function followRowsHtml(list, kind) {
+    if (!list.length) return `<div class="empty sm">${kind === 'trial' ? T('ไม่มีลูกค้าทดลองค้าง') : T('ไม่มียอดค้างเก็บเงิน 🎉')}</div>`;
+    return list.slice(0, 5).map(t => {
+        const d = t.days ?? 0, cls = kind === 'trial' ? daysClass(d) : unpaidDaysClass(d);
+        return `<div class="frow-i"><span class="dchip ${cls}">${d} ${TP(d, 'วัน')}</span><div class="lr-main"><b>${esc(U(t.cust))}</b><small>${esc(itemsText(t))}</small></div><span class="fq">${fmtN(t.qty)}</span></div>`;
+    }).join('') + (list.length > 5 ? `<div class="fmore">${T('และอีก')} ${list.length - 5} ${TP(list.length - 5, 'ราย')}</div>` : '');
+}
 function renderExec() {
     const el = document.getElementById('page-exec');
     if (!summary) { el.innerHTML = T('<div class="ptitle"><h1>Dashboard</h1></div><div class="card empty">กำลังโหลดข้อมูลสรุป... ถ้าไม่ขึ้น ให้ตรวจว่า Deploy Google Script เวอร์ชันล่าสุดแล้ว</div>'); return; }
     const s = summary, m = s.month, now = new Date();
     const pct = m.lastMonth > 0 ? Math.round((m.thisMonth - m.lastMonth) / m.lastMonth * 100) : null;
-    const trials = s.open.filter(o => o.status === 'PENDING').slice().sort((a, b) => (b.days || 0) - (a.days || 0));
-    const overdue = trials.filter(o => o.days > TRIAL_ALERT_DAYS);
+    const qs = taskQueues();
+    const trials = qs.trials, overdue = trials.filter(o => o.days > TRIAL_ALERT_DAYS);
+    const unpaid = qs.unpaid, unpaidOver = unpaid.filter(o => o.days > UNPAID_ALERT_DAYS);
+    const unpaidQty = unpaid.reduce((a, o) => a + Number(o.qty || 0), 0);
     const groups = groupStock();
     const stock = groups.slice().sort((a, b) => (b.newQty + b.usedQty) - (a.newQty + a.usedQty));
     const maxStock = Math.max(1, ...stock.map(g => g.newQty + g.usedQty));
     const low = groups.filter(g => g.low);
     const totalSaleMonth = s.bySaleMonth.reduce((a, x) => a + x[1], 0) || 1;
+    const go = t => `onclick="dashTab='${t}';showPage('dash')"`;
+    const alerts = [
+        overdue.length ? `<button class="al al-o" ${go('trial')}>🧪 ${T('ทดลองเกิน')} ${TRIAL_ALERT_DAYS} ${T('วัน')} <b>${overdue.length}</b> ${TP(overdue.length, 'ราย')}</button>` : '',
+        unpaidOver.length ? `<button class="al al-b" ${go('unpaid')}>💵 ${T('ค้างเก็บเงินเกิน')} ${UNPAID_ALERT_DAYS} ${T('วัน')} <b>${unpaidOver.length}</b> ${TP(unpaidOver.length, 'ราย')}</button>` : '',
+        qs.claims.length ? `<button class="al al-p" ${go('claim')}>🛡️ ${T('เคลมค้าง')} <b>${qs.claims.length}</b> ${TP(qs.claims.length, 'ราย')}</button>` : '',
+        low.length ? `<button class="al al-r" ${go('low')}>📦 ${lowSummaryText(low)}</button>` : ''
+    ].filter(Boolean);
     el.innerHTML = `
     <div class="ptitle"><div><small>${T('ข้อมูล ณ')} ${thaiShort(new Date(s.generatedAt))} ${thaiTime(new Date(s.generatedAt))} · ${T('คำนวณจากทุกรายการ')}</small><h1>Dashboard · ${TH_MONTHS_FULL[now.getMonth()]} ${yearLabel(now)}</h1></div></div>
-    <div class="kpis">
+    <div class="kpis kpis5">
         <div class="kpi" style="--c:var(--accent)"><small>${T('ขายเดือนนี้')}</small><b>${fmtN(m.thisMonth)} <span class="u">${T('ก้อน')}</span></b><em class="${pct === null ? 'muted' : (pct >= 0 ? 'up' : 'down')}">${pct === null ? T('เดือนก่อน ') + fmtN(m.lastMonth) : (pct >= 0 ? '▲ ' : '▼ ') + Math.abs(pct) + T('% จากเดือนก่อน (') + fmtN(m.lastMonth) + ')'}</em></div>
         <div class="kpi" style="--c:var(--primary)"><small>${T('ขายปีนี้')}</small><b>${fmtN(m.thisYear)} <span class="u">${T('ก้อน')}</span></b><em class="muted">${T('ม.ค.')}–${TH_MONTHS[now.getMonth()]}</em></div>
         <div class="kpi" style="--c:var(--orange)"><small>${T('ทดลองอยู่ที่ลูกค้า')}</small><b>${trials.length} <span class="u">${TP(trials.length, 'ราย')}</span></b><em class="${overdue.length ? 'down' : 'muted'}">${fmtN(trials.reduce((a, o) => a + Number(o.qty || 0), 0))} ${T('ก้อน', 'r')}${overdue.length ? ` · ${overdue.length} ${T('รายเกิน')} ${TRIAL_ALERT_DAYS} ${TP(TRIAL_ALERT_DAYS, 'วัน')}` : ''}</em></div>
-        <div class="kpi" style="--c:var(--purple)"><small>${T('คงเหลือในคลัง')}</small><b>${fmtN(s.stockTotal.n + s.stockTotal.u)} <span class="u">${T('ก้อน')}</span></b><em class="muted">New ${fmtN(s.stockTotal.n)} · Used ${fmtN(s.stockTotal.u)}</em></div>
+        <div class="kpi" style="--c:var(--pay)"><small>${T('รอเก็บเงิน')}</small><b>${unpaid.length} <span class="u">${TP(unpaid.length, 'ราย')}</span></b><em class="${unpaidOver.length ? 'down' : 'muted'}">${fmtN(unpaidQty)} ${T('ก้อน', 'r')}${unpaidOver.length ? ` · ${unpaidOver.length} ${T('รายเกิน')} ${UNPAID_ALERT_DAYS} ${TP(UNPAID_ALERT_DAYS, 'วัน')}` : unpaid.length ? ` · ${T('ค้างนานสุด')} ${unpaid[0].days} ${TP(unpaid[0].days, 'วัน')}` : ''}</em></div>
+        <div class="kpi" style="--c:var(--purple)"><small>${T('คงเหลือในคลัง')}</small><b>${fmtN(s.stockTotal.n + s.stockTotal.u)} <span class="u">${T('ก้อน')}</span></b><em class="${low.length ? 'down' : 'muted'}">New ${fmtN(s.stockTotal.n)} · Used ${fmtN(s.stockTotal.u)}${low.length ? ` · ${T('ใกล้หมด')} ${low.length}` : ''}</em></div>
     </div>
-    <div class="card trials"><div class="trials-head"><div class="ic">🧪</div><div><h2>${T('ลูกค้าทดลองใช้งาน')}</h2><small>${trials.length} ${TP(trials.length, 'ราย')} · ${T('เรียงจากค้างนานที่สุด')}</small></div>
-        ${isAdmin ? `<button class="btn-ghost" style="margin-left:auto" onclick="copyTrials()">📋 ${T('คัดลอกรายชื่อ ส่ง')} LINE</button>` : ''}</div>${trialCardsHtml(trials, false)}</div>
+    ${alerts.length ? `<div class="alerts"><span class="al-h">⚠️ ${T('ต้องติดตาม')}</span>${alerts.join('')}</div>` : ''}
+    <div class="grid2 even">
+        <div class="card follow"><h2>🧪 ${T('ลูกค้าทดลองค้างนานสุด')} <button class="more" onclick="dashTab='trial';showPage('dash')">${T('ดูทั้งหมด')} (${trials.length}) ›</button></h2>${followRowsHtml(trials, 'trial')}</div>
+        <div class="card follow pay"><h2>💵 ${T('รอเก็บเงินนานสุด')} <button class="more" onclick="dashTab='unpaid';showPage('dash')">${T('ดูทั้งหมด')} (${unpaid.length}) ›</button></h2>${followRowsHtml(unpaid, 'unpaid')}</div>
+    </div>
+    <div class="grid2 even">
+        <div class="card"><h2>📈 ${tf('ยอดขาย 14 วันล่าสุด', 'Sales · last 14 days')}</h2><div class="chart-box"><canvas id="chart-trend"></canvas></div></div>
+        <div class="card"><h2>🏆 ${tf('5 อันดับหินขายดี', 'Top 5 best sellers')} (${T('ปีนี้')})</h2><div class="chart-box"><canvas id="chart-models"></canvas></div></div>
+    </div>
     <div class="grid2">
         <div class="card"><h2>📦 ${T('สต็อกรายรุ่น')}</h2>
             ${stock.map(g => `<div class="bar-row"><span>${esc(g.key)}</span><span class="bar"><i class="bar-new" style="width:${g.newQty / maxStock * 100}%"></i><i class="bar-used" style="width:${g.usedQty / maxStock * 100}%"></i></span><span class="num"><b>${fmtN(g.newQty + g.usedQty)}</b>${stockPill(g, true)}</span></div>`).join('') || T('<div class="empty">ยังไม่มีสินค้า</div>')}
             <div class="legend"><span><i class="bar-new"></i>New</span><span><i class="bar-used"></i>Used</span></div>
-            ${low.length ? `<div class="notice" style="margin-top:10px">${T('หมด / ใกล้หมด')}: ${low.map(g => g.out ? `${esc(g.key)} ${T('หมด')}` : LANG === 'en' ? `${esc(g.key)}: ${g.newQty} left${g.weeksLeft ? ` (about ${g.weeksLeft} weeks)` : ''}` : `${esc(g.key)} เหลือ ${g.newQty}${g.weeksLeft ? ` (พอขายราว ${g.weeksLeft} สัปดาห์)` : ''}`).join(' · ')}</div>` : ''}
         </div>
         <div class="card"><h2>👤 ${T('ยอดขายตามผู้จัดทำ')} (${T('เดือนนี้')})</h2>
             ${s.bySaleMonth.length ? `<table class="data-table"><tbody>${s.bySaleMonth.map(([k, v]) => `<tr><td>${esc(U(k))}</td><td class="num"><b>${fmtN(v)}</b></td><td class="num muted">${Math.round(v / totalSaleMonth * 100)}%</td></tr>`).join('')}</tbody></table>` : T('<div class="empty">เดือนนี้ยังไม่มียอดขาย</div>')}
             <h2 style="margin-top:16px">🏢 ${T('ลูกค้าซื้อสูงสุด')} (${T('ปีนี้')})</h2>
             ${s.topCustomersYear.length ? `<table class="data-table"><tbody>${s.topCustomersYear.map(([k, v]) => `<tr><td>${esc(U(k))}</td><td class="num"><b>${fmtN(v)}</b></td></tr>`).join('')}</tbody></table>` : T('<div class="empty">ปีนี้ยังไม่มียอดขาย</div>')}
         </div>
-    </div>
-    <div class="grid2 even">
-        <div class="card"><h2>📈 ${tf('ยอดขาย 14 วันล่าสุด', 'Sales · last 14 days')}</h2><div class="chart-box"><canvas id="chart-trend"></canvas></div></div>
-        <div class="card"><h2>🏆 ${tf('5 อันดับหินขายดี', 'Top 5 best sellers')} (${T('ปีนี้')})</h2><div class="chart-box"><canvas id="chart-models"></canvas></div></div>
     </div>
     ${isAdmin ? `<button class="btn-line" onclick="copyWeekly()">📋 ${T('คัดลอกสรุปสัปดาห์ที่แล้ว ส่ง')} LINE</button>` : ''}`;
     drawExecCharts();
@@ -2559,7 +2713,7 @@ window.addEventListener('wheel', e => { if (e.ctrlKey || e.metaKey) e.preventDef
 window.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && ['+', '=', '-', '_', '0'].includes(e.key)) e.preventDefault(); });
 
 // Guest ดูได้อย่างเดียว — กันทุกคำสั่งที่เปลี่ยนข้อมูลไว้อีกชั้น (ปุ่มถูกซ่อนแล้ว และหลังบ้านตรวจสิทธิ์ซ้ำเสมอ)
-['openSheet', 'startRec', 'submitRec', 'confirmTestToSale', 'returnTestItem', 'closeClaim', 'processStockClaim', 'cancelLog', 'editRemark',
+['openSheet', 'startRec', 'submitRec', 'confirmTestToSale', 'markPaid', 'editPayment', 'returnTestItem', 'closeClaim', 'processStockClaim', 'cancelLog', 'editRemark',
     'addModel', 'deleteModel', 'editMinStock', 'addData', 'deleteData', 'renameData', 'renameModel', 'editEnName', 'printDoc',
     'addPhotoLater', 'deletePhoto', 'openSupplierMsg', 'copyReport', 'copyTrials', 'copyWeekly', 'openUserForm', 'resetUserPw', 'deleteUserUI', 'unlockUserUI']
     .forEach(n => {
