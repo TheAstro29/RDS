@@ -10,7 +10,7 @@ const FIREBASE_CONFIG = {
     appId: "1:589327437479:web:83c61386fc68e81454d582"
 };
 const FN_REGION = 'asia-southeast1';
-const APP_VERSION = '3.3.1';
+const APP_VERSION = '3.3.2';
 const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับหลังบ้าน (rds-core.gs)
 const SESSION_KEY = 'rds_session';
 const CACHE_KEY = 'rds_cache';
@@ -543,7 +543,7 @@ Object.assign(EN_DICT, {
     "ปิดงานเมื่อได้หินเสียคืน · เคลมรอของเข้า กดตัดสต็อกเมื่อของมาถึง": "Close when the damaged stones are back · deduct stock when waiting claims arrive",
     "รุ่นที่ New เหลือถึงเกณฑ์ขั้นต่ำ — ร่างข้อความสั่งของได้จากปุ่มด้านล่าง": "Models at or below minimum New stock — draft an order below",
     "ค้นหาลูกค้า รุ่น หรือผู้จัดทำ...": "Search customer, model or staff...", "รายงานสต็อก": "Stock report", "รายชื่อทดลอง": "Trial list",
-    "ด่วน": "Urgent", "มีเวอร์ชันใหม่ บันทึกรายการนี้เสร็จแล้วกดรีเฟรชหน้า": "A new version is ready — refresh after saving this entry", "นับยอดขายวันไหน": "Count the sale on", "วันที่ส่งของ": "Delivery date", "ก่อน": "ago",
+    "ด่วน": "Urgent", "ซื้อเมื่อ": "Bought", "มีเวอร์ชันใหม่ บันทึกรายการนี้เสร็จแล้วกดรีเฟรชหน้า": "A new version is ready — refresh after saving this entry", "นับยอดขายวันไหน": "Count the sale on", "วันที่ส่งของ": "Delivery date", "ก่อน": "ago",
     "แก้สถานะการชำระเงิน": "Edit payment status", "แก้สถานะชำระเงิน": "Edit payment", "ไม่กระทบสต็อกและยอดขาย": "stock and sales are not affected",
     "แก้สถานะการชำระเงินเรียบร้อย": "Payment status updated", "ไม่มีลูกค้าทดลองค้าง": "No open trials", "และอีก": "and", "ลูกค้าทดลองค้างนานสุด": "Longest open trials",
     "รอเก็บเงินนานสุด": "Longest awaiting payment", "ทดลองเกิน": "Trials over", "ค้างเก็บเงินเกิน": "Unpaid over", "ใกล้หมด": "low"
@@ -1984,7 +1984,9 @@ function followRowsHtml(list, kind) {
     if (!list.length) return `<div class="empty sm">${kind === 'trial' ? T('ไม่มีลูกค้าทดลองค้าง') : T('ไม่มียอดค้างเก็บเงิน 🎉')}</div>`;
     return list.slice(0, 5).map(t => {
         const d = t.days ?? 0, cls = kind === 'trial' ? daysClass(d) : unpaidDaysClass(d);
-        return `<div class="frow-i"><span class="dchip ${cls}">${d} ${TP(d, 'วัน')}</span><div class="lr-main"><b>${esc(U(t.cust))}</b><small>${esc(itemsText(t))}</small></div><span class="fq">${fmtN(t.qty)}</span></div>`;
+        const dt = kind === 'trial' ? logDate(t) : payDate(t);
+        const dLine = dt ? `<span class="fdate">${kind === 'trial' ? '📅 ' + T('เริ่มทดลอง') : '📦 ' + T('ซื้อเมื่อ')} ${thaiLongDateUI(dt)}</span>` : '';
+        return `<div class="frow-i"><span class="dchip ${cls}">${d} ${TP(d, 'วัน')}</span><div class="lr-main"><b>${esc(U(t.cust))}</b>${dLine}<small>${esc(itemsText(t))}</small></div><span class="fq">${fmtN(t.qty)}</span></div>`;
     }).join('') + (list.length > 5 ? `<div class="fmore">${T('และอีก')} ${list.length - 5} ${TP(list.length - 5, 'ราย')}</div>` : '');
 }
 function renderExec() {

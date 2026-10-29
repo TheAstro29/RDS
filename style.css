@@ -775,3 +775,4 @@ body.logged-out .top, body.logged-out .shell, body.logged-out .bnav, body.logged
 }
 .link.pay { color: var(--pay); }
 .sw-note { margin-top: 10px; font-size: 13px; font-weight: 700; color: var(--sub); }
+.fdate { display: block; font-size: 11.5px; font-weight: 600; color: var(--primary); margin: 1px 0; }

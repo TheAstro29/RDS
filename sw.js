@@ -1,8 +1,8 @@
-// v3.3.1 (cache v24) · v2.2.0 — ไฟล์ของแอป (HTML/JS/CSS) โหลดจากเน็ตก่อนเสมอ ได้เวอร์ชันล่าสุดทันทีหลังอัปเดต
+// v3.3.2 (cache v25) · v2.2.0 — ไฟล์ของแอป (HTML/JS/CSS) โหลดจากเน็ตก่อนเสมอ ได้เวอร์ชันล่าสุดทันทีหลังอัปเดต
 // ถ้าออฟไลน์ค่อยใช้ตัวที่เก็บไว้ในเครื่อง ส่วนไลบรารีจาก CDN (ไม่เปลี่ยนบ่อย) ใช้ตัวในเครื่องก่อน
-const CACHE_NAME = 'rds-shell-v24';
+const CACHE_NAME = 'rds-shell-v25';
 const SHELL_FILES = [
-  './', './index.html', './style.css?v=3.3.1', './script.js?v=3.3.1', './manifest.json', './icons/c2tech-logo.png',
+  './', './index.html', './style.css?v=3.3.2', './script.js?v=3.3.2', './manifest.json', './icons/c2tech-logo.png',
   './assets/icon-192.png', './assets/icon-512.png',
   'https://cdn.jsdelivr.net/npm/sweetalert2@11.10.5/dist/sweetalert2.all.min.js',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
