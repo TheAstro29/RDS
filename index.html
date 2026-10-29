@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>RDS by C2TECH v3.3.0</title>
+    <title>RDS by C2TECH v3.3.1</title>
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#0e4a38" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -17,10 +17,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.5/dist/sweetalert2.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <!-- v3.3.0 Firebase (เรียก Cloud Functions ของ project c2-rds) -->
+    <!-- v3.3.1 Firebase (เรียก Cloud Functions ของ project c2-rds) -->
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css?v=3.3.1" />
 </head>
 <body>
     <div id="loading" class="splash" role="status" aria-live="polite">
@@ -50,7 +50,7 @@
 
     <header class="top">
         <div class="logo">RDS</div>
-        <div class="t"><b>RDS <span class="ver">v3.3.0</span></b><small>Roller Diamond Stock · by C2TECH</small></div>
+        <div class="t"><b>RDS <span class="ver">v3.3.1</span></b><small>Roller Diamond Stock · by C2TECH</small></div>
         <span class="admin-chip" id="admin-chip" hidden>Admin</span>
         <button class="ibtn hdr-gear" id="hdr-manage" onclick="showPage('manage')" aria-label="ตั้งค่าระบบ" data-en-label="Settings" hidden>⚙️</button>
         <button class="ibtn lang-btn" id="lang-btn" onclick="setLang(LANG === 'en' ? 'th' : 'en')" aria-label="Switch to English">EN</button>
@@ -69,7 +69,7 @@
             <button class="nitem" data-nav="hist" data-ico="🕒" onclick="showPage('hist')" data-en="🕒 History">🕒 ประวัติ</button>
             <button class="nitem" data-nav="dash" data-ico="🧰" onclick="showPage('dash')" data-en="🧰 Tasks">🧰 งานค้าง</button>
             <button class="nitem" data-nav="manage" data-ico="⚙️" id="side-manage" onclick="showPage('manage')" data-en="⚙️ Settings" hidden>⚙️ ตั้งค่าระบบ</button>
-            <div class="foot">RDS by C2TECH · v3.3.0</div>
+            <div class="foot">RDS by C2TECH · v3.3.1</div>
         </aside>
 
         <main>
@@ -104,6 +104,6 @@
     </div>
     <div id="modal-slot"></div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=3.3.1"></script>
 </body>
 </html>

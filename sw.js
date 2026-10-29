@@ -1,8 +1,8 @@
-// v3.3.0 (cache v23) · v2.2.0 — ไฟล์ของแอป (HTML/JS/CSS) โหลดจากเน็ตก่อนเสมอ ได้เวอร์ชันล่าสุดทันทีหลังอัปเดต
+// v3.3.1 (cache v24) · v2.2.0 — ไฟล์ของแอป (HTML/JS/CSS) โหลดจากเน็ตก่อนเสมอ ได้เวอร์ชันล่าสุดทันทีหลังอัปเดต
 // ถ้าออฟไลน์ค่อยใช้ตัวที่เก็บไว้ในเครื่อง ส่วนไลบรารีจาก CDN (ไม่เปลี่ยนบ่อย) ใช้ตัวในเครื่องก่อน
-const CACHE_NAME = 'rds-shell-v23';
+const CACHE_NAME = 'rds-shell-v24';
 const SHELL_FILES = [
-  './', './index.html', './style.css', './script.js', './manifest.json', './icons/c2tech-logo.png',
+  './', './index.html', './style.css?v=3.3.1', './script.js?v=3.3.1', './manifest.json', './icons/c2tech-logo.png',
   './assets/icon-192.png', './assets/icon-512.png',
   'https://cdn.jsdelivr.net/npm/sweetalert2@11.10.5/dist/sweetalert2.all.min.js',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
@@ -27,12 +27,13 @@ self.addEventListener('fetch', (event) => {
   const sameOrigin = new URL(req.url).origin === self.location.origin;
   if (sameOrigin) {
     // network-first
+    // v3.3.1 cache: 'no-cache' = ถามเซิร์ฟเวอร์ทุกครั้ง (ไม่ใช้สำเนาใน HTTP cache ของเบราว์เซอร์ที่ GitHub Pages ให้เก็บได้ 10 นาที)
     event.respondWith(
-      fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+      fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }).then((res) => {
+        if (res.redirected && req.mode === 'navigate') return fetch(req); // หน้าที่ถูก redirect ให้เบราว์เซอร์จัดการเอง
+        if (res.ok) { const copy = res.clone(); caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)); }
         return res;
-      }).catch(() => caches.match(req))
+      }).catch(() => caches.match(req, { ignoreSearch: true }))
     );
     return;
   }

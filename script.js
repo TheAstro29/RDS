@@ -10,7 +10,7 @@ const FIREBASE_CONFIG = {
     appId: "1:589327437479:web:83c61386fc68e81454d582"
 };
 const FN_REGION = 'asia-southeast1';
-const APP_VERSION = '3.3.0';
+const APP_VERSION = '3.3.1';
 const BACKDATE_MAX_DAYS = 90; // ต้องตรงกับหลังบ้าน (rds-core.gs)
 const SESSION_KEY = 'rds_session';
 const CACHE_KEY = 'rds_cache';
@@ -543,7 +543,7 @@ Object.assign(EN_DICT, {
     "ปิดงานเมื่อได้หินเสียคืน · เคลมรอของเข้า กดตัดสต็อกเมื่อของมาถึง": "Close when the damaged stones are back · deduct stock when waiting claims arrive",
     "รุ่นที่ New เหลือถึงเกณฑ์ขั้นต่ำ — ร่างข้อความสั่งของได้จากปุ่มด้านล่าง": "Models at or below minimum New stock — draft an order below",
     "ค้นหาลูกค้า รุ่น หรือผู้จัดทำ...": "Search customer, model or staff...", "รายงานสต็อก": "Stock report", "รายชื่อทดลอง": "Trial list",
-    "ด่วน": "Urgent", "นับยอดขายวันไหน": "Count the sale on", "วันที่ส่งของ": "Delivery date", "ก่อน": "ago",
+    "ด่วน": "Urgent", "มีเวอร์ชันใหม่ บันทึกรายการนี้เสร็จแล้วกดรีเฟรชหน้า": "A new version is ready — refresh after saving this entry", "นับยอดขายวันไหน": "Count the sale on", "วันที่ส่งของ": "Delivery date", "ก่อน": "ago",
     "แก้สถานะการชำระเงิน": "Edit payment status", "แก้สถานะชำระเงิน": "Edit payment", "ไม่กระทบสต็อกและยอดขาย": "stock and sales are not affected",
     "แก้สถานะการชำระเงินเรียบร้อย": "Payment status updated", "ไม่มีลูกค้าทดลองค้าง": "No open trials", "และอีก": "and", "ลูกค้าทดลองค้างนานสุด": "Longest open trials",
     "รอเก็บเงินนานสุด": "Longest awaiting payment", "ทดลองเกิน": "Trials over", "ค้างเก็บเงินเกิน": "Unpaid over", "ใกล้หมด": "low"
@@ -833,7 +833,23 @@ function init() {
     fetchData();
     checkSession();
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { }); });
+        // v3.3.1 ให้ได้เวอร์ชันใหม่เร็วขึ้น (โดยเฉพาะตอนฝังใน Google Sites ที่ไม่มีปุ่มรีเฟรชแรงๆ):
+        // ตรวจ sw.js จากเซิร์ฟเวอร์ทุกครั้ง (ไม่ใช้แคช) + เช็กอัปเดตเมื่อกลับมาเปิดแอป + พอมีตัวใหม่ก็รีโหลดให้เอง 1 ครั้ง
+        const setupSW = () => {
+            const hadController = !!navigator.serviceWorker.controller;
+            navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+                reg.update().catch(() => { });
+                document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => { }); });
+            }).catch(() => { });
+            let reloaded = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!hadController || reloaded) return;       // ติดตั้งครั้งแรก ไม่ต้องรีโหลด
+                if (currentPage === 'rec' && cartEntries().length) { toast(T('มีเวอร์ชันใหม่ บันทึกรายการนี้เสร็จแล้วกดรีเฟรชหน้า'), 'info'); return; } // กันตะกร้าที่กำลังกรอกหาย
+                reloaded = true; location.reload();
+            });
+        };
+        // ฟังก์ชันนี้อาจถูกเรียกหลังหน้าโหลดเสร็จไปแล้ว (event 'load' ผ่านไปแล้ว) — ถ้าเป็นแบบนั้นให้ทำเลย
+        if (document.readyState === 'complete') setupSW(); else window.addEventListener('load', setupSW);
     }
 }
 function applyData(data) {

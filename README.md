@@ -3,7 +3,7 @@
 ระบบบริหารสต็อกหินขัด (Roller Diamond) ของ **บริษัท ซีทูเทค จำกัด (C2TECH)**
 บันทึกการขาย ส่งทดลอง รับเข้า และเคลม พร้อม Dashboard สรุปภาพรวม ใช้งานได้ทั้งคอมพิวเตอร์และมือถือ (ติดตั้งเป็นแอปบนหน้าจอโฮมได้)
 
-**เวอร์ชันปัจจุบัน:** v3.3.0 · หลังบ้าน Firebase (project `c2-rds`)
+**เวอร์ชันปัจจุบัน:** v3.3.1 · หลังบ้าน Firebase (project `c2-rds`)
 
 ---
 
@@ -100,7 +100,7 @@ Cloud Functions  (asia-southeast1)
 
 | แก้อะไร | ต้องทำ |
 |---|---|
-| หน้าเว็บ (`index.html` / `script.js` / `style.css`) | commit + push ขึ้น GitHub แล้วรีเฟรช (Ctrl+Shift+R) · ถ้าแก้ไฟล์หน้าเว็บ ให้ขยับเลข cache ใน `sw.js` ด้วย |
+| หน้าเว็บ (`index.html` / `script.js` / `style.css`) | commit + push ขึ้น GitHub แล้วรีเฟรช (Ctrl+Shift+R) · ถ้าแก้ไฟล์หน้าเว็บ ให้ขยับเลขเวอร์ชัน 3 จุด: `?v=` ใน `index.html` (style.css/script.js), `CACHE_NAME` + `SHELL_FILES` ใน `sw.js` และ `APP_VERSION` ใน `script.js` · หลัง push รอ GitHub Pages ประมาณ 1–10 นาที แอปจะรีโหลดเป็นเวอร์ชันใหม่ให้เอง |
 | หลังบ้าน (`functions/`) | ที่ `C:\dev\c2-rds-firebase` รัน `firebase deploy --only functions` |
 | rules (Firestore/Storage) | `firebase deploy --only firestore,storage` |
 
